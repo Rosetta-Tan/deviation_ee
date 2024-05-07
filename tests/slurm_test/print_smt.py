@@ -1,0 +1,1 @@
+print("This should go to the output place.")

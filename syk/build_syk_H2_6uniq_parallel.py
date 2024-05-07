@@ -1,17 +1,14 @@
-from sys import argv
-import os
-from math import sqrt
+import os, sys
 from dynamite import config
-from dynamite.operators import op_sum, op_product
-from dynamite.tools import track_memory, get_max_memory_usage, get_cur_memory_usage
+from dynamite.operators import op_sum, op_product, zero
 from dynamite.extras import majorana
 from itertools import combinations
 import numpy as np
 from scipy.special import comb
 import argparse
-
 from timeit import default_timer
 from datetime import timedelta
+from mpi4py import MPI
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-L', type=int, required=True, help='system size')
@@ -31,6 +28,9 @@ N = 2*L # number of Majoranas
 
 # cache Majoranas to save time
 M = [majorana(idx) for idx in range(0,N)]
+rng = np.random.default_rng(seed=seed)
+all_combinations = list(combinations(range(N), 4))
+idxs_cpl = {idxs: rng.normal() for idxs in all_combinations}
 
 def coeff(key):
     # assert len(key) == 4
@@ -63,19 +63,43 @@ def coeff(key):
             coeff += sgn*idxs_cpl[tuple(sorted(lst1))]*idxs_cpl[tuple(sorted(lst2))]
     return coeff
 
-start = default_timer()
+def main():
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+    print(f'rank {rank} of {size} is running')
+    start = default_timer()
+    chunk_size = len(all_combinations) // size
+    if rank == size-1:
+        local_combinations = all_combinations[rank*chunk_size:]
+    else:
+        local_combinations = all_combinations[rank*chunk_size:(rank+1)*chunk_size]
+    print(f'rank {rank} has {len(local_combinations)} combinations')
 
-# initialize random number generator
-# np.random.seed(j)
-rng = np.random.default_rng(seed=seed)
+    # Local computation
+    local_H2_6uniq_part = op_sum(coeff(key)*op_product((M[idx] for idx in key)) for key in local_combinations)
 
-# prepare the two different index tuple sets
-idxs_cpl = {}
-for idxs in combinations(range(N),4):
-    idxs_cpl[idxs] = rng.normal()
+    if rank != 0:
+        req = comm.isend(local_H2_6uniq_part, dest=0)
+    
+    comm.Barrier()
 
-H2_6uniq = op_sum(coeff(key)*op_product((M[idx] for idx in key)) for key in list(combinations(range(N),4)))
-H2_6uniq.save(os.path.join(output_dir,f'H2_6uniq_L={L}_seed={seed}.msc'))
+    # Gather results at the master
+    if rank == 0:  # master node
+        H2_6uniq = zero()
+        H2_6uniq += local_H2_6uniq_part
+        for i in range(1, size):
+            temp_H2_6uniq_part = comm.recv(source=i)
+            H2_6uniq += temp_H2_6uniq_part
+        H2_6uniq.save(os.path.join(output_dir,f'H2_6uniq_L={L}_seed={seed}.msc'))
+        print(f'build 6uniq L={L} seed = {seed}; time elapsed: {timedelta(0,default_timer()-start)}')
+    
+    if rank != 0:
+        req.wait()
+        print(f'rank {rank} finished')
 
+    MPI.Finalize()
 
-print(f'build 6uniq L={L} seed = {seed}; time elapsed: {timedelta(0,default_timer()-start)}')
+if __name__ == '__main__':
+    main()
+    

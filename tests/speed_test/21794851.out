@@ -1,0 +1,3 @@
+load Hamiltonian, L=16, seed=0; time elapsed: 0:00:00.001723
+construct the two operators involved in power method, L=16, seed=0; time elapsed: 0:00:00.005275
+evolve state with power method, L=16, seed=0, state_seed=0; time elapsed: 0:59:27.362343

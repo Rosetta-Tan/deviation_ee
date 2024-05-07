@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/n/home01/ytan/deviation_ee/syk/solve_syk_powermethod.py", line 125, in <module>
+    main()
+  File "/n/home01/ytan/deviation_ee/syk/solve_syk_powermethod.py", line 108, in main
+    v.save(os.path.join(vec_dir,f'v0_L={L}_seed={seed}_tol_coeff={tol_coeff}'))
+UnboundLocalError: local variable 'v' referenced before assignment

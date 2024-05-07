@@ -43,9 +43,9 @@ global_options = {
     'mem'    : '8G',
 
     # program options
-    'name': 'L21_build_6uniq_terms',
+    'name': 'L15_build_6uniq_terms',
     'nodes'      : 1,
-    'cores'      : 1,
+    'cores'      : 16,
 }
 
 # set a custom directory in output_dir for this particular run
@@ -54,7 +54,7 @@ global_options['output_dir'] = join(global_options['output_dir'], global_options
 # each of these will be submitted as a separate job array
 task_options = [
     {
-        'size': 21,
+        'size': 15,
         'seed': range(10),
         'time':'1-00:00',
     },

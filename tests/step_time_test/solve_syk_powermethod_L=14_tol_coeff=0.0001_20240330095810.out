@@ -1,0 +1,4 @@
+load Hamiltonian, L=14, seed=51, to be solved at tol_coeff 0.0001; time elapsed: 0:00:00.018973
+construct the two operators involved in power method, L=14, seed=51; time elapsed: 0:00:00.022525
+load Hamiltonian, L=14, seed=10, to be solved at tol_coeff 0.0001; time elapsed: 0:00:00.035675
+construct the two operators involved in power method, L=14, seed=10; time elapsed: 0:00:00.038225
