@@ -5,6 +5,7 @@ from dynamite import config
 from dynamite.operators import op_sum, op_product, Operator
 from dynamite.tools import track_memory, get_max_memory_usage, get_cur_memory_usage
 from dynamite.extras import majorana
+from dynamite.subspaces import Parity
 from itertools import combinations
 import numpy as np
 from scipy.special import comb
@@ -36,6 +37,7 @@ args = parser.parse_args()
 if args.gpu:
     config.initialize(gpu=True)  # the EPS interval parameter can be played with
 config.shell=True
+config.subspace = Parity('even')
 
 L = args.L
 config.L = L

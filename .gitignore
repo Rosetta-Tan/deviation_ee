@@ -20,7 +20,7 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
+pip-wheel-metadata
 share/python-wheels/
 *.egg-info/
 .installed.cfg
@@ -128,8 +128,8 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# data
-data/
+
+
 
 # output files
 ou0t/
