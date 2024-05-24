@@ -1,0 +1,13 @@
+{
+  "base_url": "/",
+  "hostname": "0.0.0.0",
+  "password": false,
+  "pid": 1,
+  "port": 8887,
+  "root_dir": "/home/dnm",
+  "secure": false,
+  "sock": "",
+  "token": "5168384704274d7a8969ea2039833ce13e8f66b02dd90786",
+  "url": "http://e882b84c9ee0:8887/",
+  "version": "2.13.0"
+}

@@ -2,7 +2,6 @@ import os, sys, csv, argparse
 from dynamite import config
 from dynamite.states import State
 from dynamite.operators import zero, op_sum, op_product, identity, Operator
-from dynamite.tools import track_memory, get_max_memory_usage, get_cur_memory_usage
 from dynamite.extras import majorana
 from dynamite.computations import entanglement_entropy, evolve
 from dynamite.subspaces import Parity
