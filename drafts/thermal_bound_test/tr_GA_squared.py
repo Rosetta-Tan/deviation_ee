@@ -10,6 +10,15 @@ import os
 import argparse
 import logging
 
+class FlushStreamHandler(logging.StreamHandler):
+    def emit(self, record):
+        super().emit(record)
+        self.flush()
+
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    handlers=[FlushStreamHandler()])
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--LA', type=int, required=True)
 parser.add_argument('--seed', type=int, required=True)
