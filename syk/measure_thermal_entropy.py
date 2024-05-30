@@ -14,6 +14,7 @@ from scipy.special import comb
 from timeit import default_timer
 from datetime import timedelta
 import logging
+import resource
 
 class FlushStreamHandler(logging.StreamHandler):
     def emit(self, record):
@@ -38,43 +39,25 @@ args = parser.parse_args()
 if args.gpu:
     config.initialize(gpu=True)
 config.shell=True  # not using shift-and-invert, so can use shell matrix
-config.L = args.L
-
-# cache Majoranas to save time
-N = 2*args.L
-M = [majorana(idx) for idx in range(0, N)]
-RNG = np.random.default_rng(args.seed)
-CPLS = RNG.normal(size=comb(N, 4, exact=True))  # the overall constant factor is 1/sqrt((N choose 4))
-CPLS_MAP = {(i, j, k, l): CPLS[ind] for ind, (i, j, k, l) in enumerate(combinations(range(N), 4))}  # map from tuple to CPLS index}
 
 def save_data(csv_filepath, *data, append=True):
     with open(csv_filepath, 'a' if append else 'w') as file:
         writer = csv.writer(file)
         writer.writerow([args.L, args.seed, *data])
 
-def build_GA_tensor_IAbar(A_inds: list[int]):
+def load_GA():
     """
-    Build the subsystem Hamiltonian GA with full Hilbert space
-    Paras:
-        A_inds: indices of *spins* in subsystem A
+    Load the GA from file.
     """
-    GA = zero()
-    NA = 2*len(A_inds)
-    # this is necessary because the iterator should go over Majorana indices instead of spin indices
-    A_maj_inds = list(sorted([2*i for i in A_inds] + [2*i+1 for i in A_inds]))
-    normalization_factor = 1.0 / comb(N, 4)
-    # print(cpls_subset)
-    iterator = combinations(A_maj_inds, 4)
-    for inds1 in iterator:  # inds1 is a tuple of 4 indices
-        for inds2 in iterator:
-            cdnl = len(set(inds1).union(set(inds2)))
-            if cdnl == 4 or cdnl == 5 or cdnl == 7:
-            # only cardinality 6 or 8 terms are non-zero
-                continue
-            C_cdnl = comb(N, NA) / comb(N-cdnl, NA-cdnl)
-            ops = [M[i] for i in inds1] + [M[j] for j in inds2]
-            GA += C_cdnl * CPLS_MAP[inds1] * CPLS_MAP[inds2] * op_product(ops)
-    return normalization_factor * GA
+    LA = args.L // 2
+    filename_str = f'GA_L={args.L}_LA={LA}_seed={args.seed}'
+    try:
+        GA = Operator.load(os.path.join(args.msc_dir, filename_str, 'msc'))
+        logging.info(f'load GA: L={args.L}, seed {args.seed} ...')
+        return GA
+    except:
+        logging.error(f'GA file not found: L={args.L}, seed {args.seed} ...')
+        return None
 
 def GA_to_numpy(GA: Operator, A_inds: list[int]):
     """
@@ -227,6 +210,6 @@ if __name__ == '__main__':
     logging.info(f'calculate thermal entropy: S_thermal={S_thermal}')
 
     # test_GA_to_numpy_projection(A_inds=[0,1,4,5])
-    # for beta in np.linspace(-1, 1, 10):
-    #     test_thermal_entropy(beta, A_inds)
+    for beta in np.linspace(-1, 1, 10):
+        test_thermal_entropy(beta, A_inds)
     # test_GA_to_numpy(A_inds)
