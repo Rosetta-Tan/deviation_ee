@@ -1,0 +1,9 @@
+2024-06-13 17:24:30,934 - INFO - start building GA, L=18, LA=9 seed=0
+Traceback (most recent call last):
+  File "/n/home01/ytan/deviation_ee/drafts/build_GA_optm/dynamite_decompose.py", line 104, in <module>
+    pipeline(n_groups)
+  File "/n/home01/ytan/deviation_ee/drafts/build_GA_optm/dynamite_decompose.py", line 94, in pipeline
+    build_GA(n_groups, save=True)
+  File "/n/home01/ytan/deviation_ee/drafts/build_GA_optm/dynamite_decompose.py", line 87, in build_GA
+    GA.save(os.path.join(args.msc_dir, 
+AttributeError: 'numpy.ndarray' object has no attribute 'save'. Did you mean: 'ravel'?

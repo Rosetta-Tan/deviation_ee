@@ -1,0 +1,4 @@
+  File "/n/home01/ytan/deviation_ee/drafts/build_GA_optm/dynamite_decompose.py", line 94
+    build_GA(n_groups=save=True)
+                          ^
+SyntaxError: invalid syntax

@@ -1,4 +1,5 @@
 import cupy as cp
+from cupyx.scipy.sparse import csr_matrix as gpu_csr
 import numpy as np
 import argparse
 from itertools import combinations
@@ -23,7 +24,8 @@ parser.add_argument('--LA', type=int, help='subsystem size')
 parser.add_argument('--seed', type=int, help='random seed')
 parser.add_argument('--save', type=bool, required=False, default=False, \
                     help='save GA')
-parser.add_argument('--save_dir', type=str, required=False, default='./', \
+parser.add_argument('--save_dir', type=str, required=False, \
+                    default='/n/home01/ytan/scratch/deviation_ee/msc_npy_GA', \
                     help='save directory')
 args = parser.parse_args()
 
@@ -45,16 +47,16 @@ def gen_maj(L) -> cp.ndarray:
 
         for j_site in range(1, L): 
             if j_site < i_site:
-                maj_even = cp.kron(maj_even, sigmaz)
-                maj_odd = cp.kron(maj_odd, sigmaz)
+                maj_even = cp.kron(sigmaz, maj_even)
+                maj_odd = cp.kron(sigmaz, maj_odd)
             elif j_site == i_site: 
-                maj_even = cp.kron(maj_even, sigmax)
-                maj_odd = cp.kron(maj_odd, sigmay)
+                maj_even = cp.kron(sigmax, maj_even)
+                maj_odd = cp.kron(sigmay, maj_odd)
             else:
-                maj_even = cp.kron(maj_even, sigma0)
-                maj_odd = cp.kron(maj_odd, sigma0)
+                maj_even = cp.kron(sigma0, maj_even)
+                maj_odd = cp.kron(sigma0, maj_odd)
 
-        majorana_list += [maj_even, maj_odd]
+        majorana_list += [gpu_csr(maj_even), gpu_csr(maj_odd)]
 
     return majorana_list
 
@@ -64,11 +66,11 @@ def op_product(ops) -> cp.ndarray:
     """
     op = ops[0]
     for i in range(1, 8):
-        op = op.dot(ops[i])
-    return op  # convert to cupy.ndarray
+        op = op @ ops[i]
+    return op.toarray()  # convert to cupy.ndarray
 
 def build_GA(majorana, L: int, LA: int, cpls: np.ndarray,
-    iterator: np.ndarray) -> cp.ndarray:
+    iterator: np.ndarray) -> np.ndarray:
     """
     Params:
         majorana: list of majorana operators
@@ -79,7 +81,7 @@ def build_GA(majorana, L: int, LA: int, cpls: np.ndarray,
     """
     N = 2 * L
     NA = 2 * LA
-    normalization_factor = 4*3*2*1 / N*(N-1)*(N-2)*(N-3)
+    normalization_factor = 4*3*2*1 / (N*(N-1)*(N-2)*(N-3))
 
     GA = cp.zeros((2**LA, 2**LA), dtype=complex)
     for i1, inds1 in enumerate(iterator):
@@ -88,14 +90,14 @@ def build_GA(majorana, L: int, LA: int, cpls: np.ndarray,
                 np.concatenate((inds1, inds2))))  # cardinality
             if cdnl == 6:
                 C_cdnl = N*(N-1)*(N-2)*(N-3)*(N-4)*(N-5) / \
-                    NA*(NA-1)*(NA-2)*(NA-3)*(NA-4)*(NA-5)
+                    (NA*(NA-1)*(NA-2)*(NA-3)*(NA-4)*(NA-5))
                 coeff = C_cdnl * cpls[i1] * cpls[i2]
 
                 GA += coeff * op_product([majorana[i] for i in inds1] + \
                     [majorana[j] for j in inds2])
             elif cdnl == 8:
                 C_cdnl = N*(N-1)*(N-2)*(N-3)*(N-4)*(N-5)*(N-6)*(N-7) / \
-                    NA*(NA-1)*(NA-2)*(NA-3)*(NA-4)*(NA-5)*(NA-6)*(NA-7)
+                    (NA*(NA-1)*(NA-2)*(NA-3)*(NA-4)*(NA-5)*(NA-6)*(NA-7))
                 coeff = C_cdnl * cpls[i1] * cpls[i2]
                 GA += coeff * op_product([majorana[i] for i in inds1] + \
                     [majorana[j] for j in inds2])
@@ -128,10 +130,10 @@ def pipeline():
     if args.save:
         logging.info(f'Saving GA for L={args.L}, LA={args.LA}, \
                         seed={args.seed} ...')
-        GA = cp.asnumpy(GA)
+        GA = cp.asnumpy(GA)  # move back to numpy
         np.save(os.path.join(
             args.save_dir, \
-                f'GA_L={args.L}_LA={args.LA}_seed={args.seed}.npy'), GA)
+                f'GA_L={args.L}_LA={args.LA}_seed={args.seed}_cuda_sparse.npy'), GA)
         logging.info(f"Memory usage after saving GA: \
             {process.memory_info().rss / 1024 / 1024} MB")
     

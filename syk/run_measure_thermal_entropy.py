@@ -12,7 +12,7 @@ seeds = range(0, 20)
 tols = [1e-1, 1e-2]
 
 JOBNAME = 'syk_thermal'
-dir = '/n/home01/ytan/scratch/deviation_ee/output/20240425_powermethod_z2_newtol'
+dir = '/n/home01/ytan/scratch/deviation_ee/output/2024602_thermal_bound'
 vec_dir = '/n/home01/ytan/scratch/deviation_ee/vec_syk_pm_z2_newtol'
 if not os.path.isdir(dir):
   os.mkdir(dir)
