@@ -84,6 +84,7 @@ module load cuda/12.4.1-fasrc01
 mamba activate qec_numerics
 python /n/home01/ytan/deviation_ee/syk/build_GA.py --L {L} --LA {LA} \
     --seed $SLURM_ARRAY_TASK_ID --save True --save_dir {save_dir}
+singularity exec --nv /n/holystore01/LABS/yao_lab/Lab/dynamite/sifs/dynamite_latest-cuda.sif python dynamite_decompose.py --L "$L" --LA "${LA}" --seed 0 --gpu 1
 ''')
   rsh.close()
   array_str = ','.join([str(i) for i in seeds])

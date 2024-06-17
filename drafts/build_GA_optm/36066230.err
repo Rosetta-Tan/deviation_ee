@@ -1,1 +1,3 @@
 2024-06-14 19:58:48,387 - INFO - start building GA, L=26, LA=13 seed=0
+/var/slurmd/spool/slurmd/job36066230/slurm_script: line 18: 3216180 Killed                  singularity exec --nv /n/holystore01/LABS/yao_lab/Lab/dynamite/sifs/dynamite_latest-cuda.sif python dynamite_decompose.py --L "$L" --LA "${LA}" --seed 0 --gpu 1
+slurmstepd: error: Detected 1 oom_kill event in StepId=36066230.batch. Some of the step tasks have been OOM Killed.

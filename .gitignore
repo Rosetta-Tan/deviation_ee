@@ -128,13 +128,12 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-
-
-
 # output files
 ou0t/
 output_syk/
 output_spinchain_old/
+*.err
+*.out
 
 # jupyter
 .ipynb_checkpoints/
