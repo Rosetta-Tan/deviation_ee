@@ -137,3 +137,6 @@ output_spinchain_old/
 
 # jupyter
 .ipynb_checkpoints/
+
+# dynamite
+*.dynamite

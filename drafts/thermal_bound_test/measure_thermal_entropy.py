@@ -1,19 +1,13 @@
-import os, sys, csv, argparse
+import os
+import csv
+import argparse
+import logging
+import numpy as np
+from scipy.linalg import logm, expm
+from scipy.optimize import root_scalar
 from dynamite import config
 from dynamite.states import State
-from dynamite.operators import zero, op_sum, op_product, identity, Operator
-from dynamite.extras import majorana
-from dynamite.computations import entanglement_entropy, evolve
-from dynamite.subspaces import Parity
-from itertools import combinations, product
-import numpy as np
-from scipy.sparse.linalg import expm, svds
-from scipy.linalg import logm, svd
-from scipy.optimize import root_scalar
-from scipy.special import comb
-from timeit import default_timer
-from datetime import timedelta
-import logging
+from dynamite.computations import reduced_density_matrix
 
 class FlushStreamHandler(logging.StreamHandler):
     def emit(self, record):
@@ -78,93 +72,95 @@ def test_load_GA(L, LA, seed):
     GA = load_GA(L, LA, seed)
     assert GA.shape[0] == 2**LA, f'GA shape: {GA.shape}'
 
-def load_state_vec(L, seed, tol) -> np.ndarray:
+def load_state_vec(L, seed, tol):
+    """
+    Load the state vector from file.
+    Return:
+        v: dynamite.states.State, the state vector
+        The reason for returning this formate is to use
+        dynamite's native reduced density matrix method
+    """
     filename_str = f'v_L={L}_seed={seed}_tol={tol}'
     try:
         v = State.from_file(os.path.join(args.vec_dir, filename_str))
         logging.info(f'load state vec: L={L}, seed {seed} ...')
-        return v.to_numpy()
+        # return v.to_numpy()
+        return v
     except:
         logging.error(f'state vec file not found: L={L}, seed {seed} ...')
         return None
 
 def test_load_state_vec(L, seed, tol):
     v = load_state_vec(L, seed, tol)
+    print(v.L)
     assert v.shape == (2**(L-1),), f'v shape: {v.shape}'
 
-def fold_state_vector(v, L, LA) -> np.ndarray:
+'''
+Temporarily not using this method, because it's not fast.
+def extend_v(v, L) -> np.ndarray:
     """
-    Need to use this method because it saves memory.
-    If instead extending GA to GA\otimes I_Abar, it's equivalenet to doing
-    2**L x 2**L full matrix. Will cause memory error.
-
+    Extend the loaded state vector into full Hilbert space.
     Return:
+        v_ext: shape (2**L,), the extended state vector
     """
     v_ext = np.zeros(2**L, dtype=np.complex128)
     for i in range(2**L):
         i_binstr = np.binary_repr(i, width=L)
+        # interleave even and odd basis
         if i_binstr.count('1') % 2 == 0:
-            v_ext[i] = v[int(i_binstr[:LA] + i_binstr[LA+1:], 2)]
+            v_ext[i] = v[i // 2]
         else:
             v_ext[i] = 0
+    return v_ext
 
-    for iA in range(2**LA):
-        iA_binstr = np.binary_repr(iA, width=LA)
-        for jA in range(2**LA):
-            jA_binstr = np.binary_repr(jA, width=LA)
-            for kAbar in range(2**(L-LA)):
-                kAbar_binstr = np.binary_repr(kAbar, width=L-LA)
-                i = int(kAbar_binstr, iA_binstr, 2)
-                j = int(kAbar_binstr, jA_binstr, 2)
-                # rdm[iAbar_binstr, jAbar_binstr] += dm[i, j]
-                    
-    GA_IAbar = projector @ GA_IAbar @ projector.T
-    return GA_IAbar
+def test_extend_v(v, L):
+    v_ext = extend_v(v, L)
+    assert v_ext.shape == (2**L,), f'v_ext shape: {v_ext.shape}'
+'''
 
-def test_extend_GA_IAbar(L, LA):
+def get_v_rdm(v, LA) -> np.ndarray:
     """
-    - Test the conversion from GA to numpy array (dimensionality issue)
-    - Test the trace of GA^2/2^L_A, 
-        to see if it matches the theoretical result
+    Get reduced density matrix from the extended state vector.
+    Need to use this method because it saves memory.
+    If instead extending GA to GA\otimes I_Abar, it's equivalenet to doing
+    2**L x 2**L full matrix. Will cause memory error.
+
+    Parameters:
+        v: dynamite.states.State, the state vector
+
+    Return:
+        rdm: np.ndarray((2**LA, 2**LA), dtype=complex), 
+            the reduced density matrix
     """
-    GA = load_GA()
-    GA_IAbar = extend_GA_IAbar(GA, L, LA)
-    print('(debug) trace of (GA\otimes IAbar)^2/2^(L-1): ', \
-        np.trace(GA_IAbar @ GA_IAbar) / 2**(L-1))
-    assert GA_IAbar.shape == (2**(L-1), 2**(L-1)), \
-        f'GA_IAbar shape: {GA_IAbar.shape}'
+    logging.info(f'calculate reduced density matrix: LA={LA} ...')
+    rdm = reduced_density_matrix(v, np.arange(LA))
+    return rdm
 
-def test_GA_dm(beta):
-    A_inds = list(range(0, config.L//2))
-    GA = load_GA(A_inds)
-    GA_numpy = GA_to_numpy(GA, A_inds)
-    GA_dm = expm(-beta * GA_numpy)
-    assert GA_dm.shape == (2**len(A_inds), 2**len(A_inds)), f'GA_dm shape: {GA_dm.shape}'
+def test_v_rdm(v, LA):
+    rdm = get_v_rdm(v, LA)
+    assert rdm.shape == (2**LA, 2**LA), f'rdm shape: {rdm.shape}'
+    assert np.allclose(np.trace(rdm), 1), f'trace of rdm: {np.trace(rdm)}'
 
-def test_thermal_energy(beta):
-    # TODO
-    pass
-
-def test_thermal_entropy(beta, A_inds):
-    GA = load_GA(A_inds)
-    GA_numpy = GA_to_numpy(GA, A_inds)
-    GA_dm = expm(-beta * GA_numpy).toarray()
-    print('rho shape: ', rho.shape)
-    Z = np.trace(GA_dm)
-    rho = GA_dm / Z
-    S_thermal = -np.trace(rho @ logm(rho)).real
-    print(f'(debug): beta={beta}, S_thermal={S_thermal}')
-    return S_thermal
-
-def expt_GA_IAbar(v, GA_IAbar, L, LA):
+def expt_GA_rdm(GA, v_rdm):
     """
     Prepare the data for diff_GA_expt_thermal,
     so that in root finding, these calculations are not repeated.
     """
-    expt_GA = (v @ GA_IAbar @ v).real
-    logging.info(f'measure GA expectation value: L={L}, seed {args.seed} ...')
+    logging.info(f'measure GA expectation value ...')
+    expt = np.trace(GA @ v_rdm).real
     
-    return expt_GA
+    return expt
+
+def thermal_energy(GA, beta):
+    """
+    Calculate the thermal energy of GA.
+    """
+    GA_dm = expm(-beta * GA).real
+    Z = np.trace(GA_dm)
+    logging.debug(f'Z: {Z}')
+    thermal_energy = np.trace(GA_dm @ GA).real / Z
+    logging.debug(f'thermal entropy: {thermal_energy}')
+    return thermal_energy
 
 def diff_GA_expt_thermal(expt_GA, GA, beta):
     """
@@ -175,11 +171,11 @@ def diff_GA_expt_thermal(expt_GA, GA, beta):
     i.e., evaluating tr(GA * rho) where rho = exp(-beta * GA) / Z
     """
     GA_dm = expm(-beta * GA).real
-    Z = np.trace(GA_dm.trace)
-    thermal_energy = np.trace(GA_dm @ GA) / Z
+    Z = np.trace(GA_dm)
+    thermal_energy = np.trace(GA_dm @ GA).real / Z
     return expt_GA - thermal_energy
 
-def root_find(expression, beta0=-100, beta1=100):
+def root_find(expression, beta0=-0.1, beta1=0.1):
     """
     Find the beta that gives the correct thermal energy.
     Using bisect method.
@@ -198,7 +194,7 @@ def thermal_entropy(GA, beta, save=False):
     Calculate the thermal bound Delta S = S_vN(rho_GA(beta)), at the calculated beta.
     Here S_vN is the von-Neumann entropy.
     """
-    GA_dm = expm(-beta * GA).toarray()
+    GA_dm = expm(-beta * GA).real
     Z = np.trace(GA_dm)
     rho = GA_dm / Z
     S_thermal = -np.trace(rho @ logm(rho)).real
@@ -214,19 +210,29 @@ def thermal_entropy(GA, beta, save=False):
     return S_thermal
 
 def pipeline(L, LA, seed, tol):
-    GA = load_GA()
-    print('here')
-    GA_IAbar = extend_GA_IAbar(GA, L, LA)
+    GA = load_GA(L, LA, seed)
     v = load_state_vec(L, seed, tol)
-    expt_GA = expt_GA_IAbar(v, GA_IAbar, L, LA)
+    v_rdm = get_v_rdm(v, LA)
+    expt_GA = expt_GA_rdm(GA, v_rdm)
+    logging.debug(f'expectation value of GA: {expt_GA}')
     expression = lambda beta: diff_GA_expt_thermal(expt_GA, GA, beta)
     beta, iters = root_find(expression)
     logging.info(f'root finding: beta={beta}, iterations={iters}')
-    S_thermal = thermal_entropy(beta, save=args.save)
+    S_thermal = thermal_entropy(GA, beta, save=args.save)
     logging.info(f'calculate thermal entropy: S_thermal={S_thermal}')
 
 def test():
+    GA = load_GA(args.L, args.LA, args.seed)
+    beta = -0.1
+    logging.debug(f'thermal energy: {thermal_energy(GA, beta)}')
     test_load_GA(args.L, args.LA, args.seed)
+    v = load_state_vec(args.L, args.seed, args.tol)
+    # test_load_state_vec(args.L, args.seed, args.tol)
+    # test_extend_v(v, args.L)
+    # v_ext = extend_v(v, args.L)
+    test_v_rdm(v, args.LA)
+    
 
 if __name__ == '__main__':
-    test()
+    # test()
+    pipeline(args.L, args.LA, args.seed, args.tol)
