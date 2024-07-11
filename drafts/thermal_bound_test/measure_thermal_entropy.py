@@ -55,38 +55,69 @@ def save_data(csv_filepath, *data, append=True):
         writer = csv.writer(file)
         writer.writerow([args.L, args.seed, *data])
 
-def load_GA() -> np.ndarray:
+def load_GA(L, LA, seed) -> np.ndarray:
     """
     Load the subsystem Hamiltonian GA from file.
     And project it to the even parity subspace.
-    # TODO: check if the GA is in the even parity subspace
+    Return:
+        GA: shape (2**LA, 2**LA), the subsystem Hamiltonian
+        This means GA is not projected to subspace
     """
-    filename = f'GA_L={args.L}_LA={args.LA}_seed={args.seed}_dnm_decmp.npy'
+    filename = f'GA_L={L}_LA={LA}_seed={seed}_dnm_decmp.npy'
     try:
         GA = np.load(os.path.join(args.op_dir, filename))
-        logging.info(f'load GA: L={args.L}, LA={args.LA}, \
-                     seed {args.seed} ...')
+        logging.info(f'load GA: L={L}, LA={LA}, \
+                     seed {seed} ...')
         return GA
     except:
-        logging.error(f'GA file not found: L={args.L}, LA={args.LA}, \
-                      seed {args.seed} ...')
+        logging.error(f'GA file not found: L={L}, LA={LA}, \
+                      seed {seed} ...')
         return None
     
-def test_load_GA():
-    GA = load_GA()
-    assert GA.shape[0] == 2**(args.LA), f'GA shape: {GA.shape}'
+def test_load_GA(L, LA, seed):
+    GA = load_GA(L, LA, seed)
+    assert GA.shape[0] == 2**LA, f'GA shape: {GA.shape}'
 
-def extend_GA_IAbar(GA: np.ndarray, L, LA):
+def load_state_vec(L, seed, tol) -> np.ndarray:
+    filename_str = f'v_L={L}_seed={seed}_tol={tol}'
+    try:
+        v = State.from_file(os.path.join(args.vec_dir, filename_str))
+        logging.info(f'load state vec: L={L}, seed {seed} ...')
+        return v.to_numpy()
+    except:
+        logging.error(f'state vec file not found: L={L}, seed {seed} ...')
+        return None
+
+def test_load_state_vec(L, seed, tol):
+    v = load_state_vec(L, seed, tol)
+    assert v.shape == (2**(L-1),), f'v shape: {v.shape}'
+
+def fold_state_vector(v, L, LA) -> np.ndarray:
     """
-    GA \otimes I_\bar{A}, and project to parity-even subspace
+    Need to use this method because it saves memory.
+    If instead extending GA to GA\otimes I_Abar, it's equivalenet to doing
+    2**L x 2**L full matrix. Will cause memory error.
+
+    Return:
     """
-    LAbar = L - LA
-    GA_IAbar = np.kron(GA, np.eye(2**LAbar, 2**LAbar))
-    projector = np.zeros((2**(L-1), 2**L), dtype=int)
+    v_ext = np.zeros(2**L, dtype=np.complex128)
     for i in range(2**L):
-        basis_vec = np.binary_repr(i, width=L)
-        if basis_vec.count('1') % 2 == 0:
-            projector[i//2, i] = 1
+        i_binstr = np.binary_repr(i, width=L)
+        if i_binstr.count('1') % 2 == 0:
+            v_ext[i] = v[int(i_binstr[:LA] + i_binstr[LA+1:], 2)]
+        else:
+            v_ext[i] = 0
+
+    for iA in range(2**LA):
+        iA_binstr = np.binary_repr(iA, width=LA)
+        for jA in range(2**LA):
+            jA_binstr = np.binary_repr(jA, width=LA)
+            for kAbar in range(2**(L-LA)):
+                kAbar_binstr = np.binary_repr(kAbar, width=L-LA)
+                i = int(kAbar_binstr, iA_binstr, 2)
+                j = int(kAbar_binstr, jA_binstr, 2)
+                # rdm[iAbar_binstr, jAbar_binstr] += dm[i, j]
+                    
     GA_IAbar = projector @ GA_IAbar @ projector.T
     return GA_IAbar
 
@@ -124,21 +155,6 @@ def test_thermal_entropy(beta, A_inds):
     S_thermal = -np.trace(rho @ logm(rho)).real
     print(f'(debug): beta={beta}, S_thermal={S_thermal}')
     return S_thermal
-
-
-def load_state_vec(L, seed, tol) -> np.ndarray:
-    filename_str = f'v_L={L}_seed={seed}_tol={tol}'
-    try:
-        v = State.from_file(os.path.join(args.vec_dir, filename_str))
-        logging.info(f'load state vec: L={L}, seed {seed} ...')
-        return v.to_numpy()
-    except:
-        logging.error(f'state vec file not found: L={L}, seed {seed} ...')
-        return None
-
-def test_load_state_vec(L, seed, tol):
-    v = load_state_vec(L, seed, tol)
-    assert v.shape == (2**(L-1),), f'v shape: {v.shape}'
 
 def expt_GA_IAbar(v, GA_IAbar, L, LA):
     """
@@ -188,7 +204,8 @@ def thermal_entropy(GA, beta, save=False):
     S_thermal = -np.trace(rho @ logm(rho)).real
 
     if save:
-        csv_filepath = os.path.join(args.obs_dir, f"thermal_entropy_L={args.L}_seed={args.seed}_tol={args.tol}.csv")
+        csv_filepath = os.path.join(args.obs_dir, \
+            f"thermal_entropy_L={args.L}_seed={args.seed}_tol={args.tol}.csv")
         if not os.path.exists(csv_filepath):
             with open(csv_filepath, 'w') as file:
                 writer = csv.writer(file)
@@ -209,7 +226,7 @@ def pipeline(L, LA, seed, tol):
     logging.info(f'calculate thermal entropy: S_thermal={S_thermal}')
 
 def test():
-    test_load_state_vec(args.L, args.seed, args.tol)
+    test_load_GA(args.L, args.LA, args.seed)
 
 if __name__ == '__main__':
     test()
