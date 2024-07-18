@@ -34,7 +34,7 @@ args = parser.parse_args()
 
 if args.gpu == 1:
     config.initialize(gpu=True)
-# config.shell=True
+config.shell=True
 
 N = 2*args.L # total number of Majoranas
 NA = 2*args.LA # number of Majoranas in the subsystem
@@ -42,11 +42,12 @@ if not os.path.isdir(args.msc_dir):
     os.mkdir(args.msc_dir)
 
 # cache Majoranas to save time
-M = [majorana(idx) for idx in range(0, NA)]  # TODO: drop the factor of sqrt(2) when the Majorana normalization is fixed
+M = [majorana(idx) for idx in range(0, NA)]
 RNG = np.random.default_rng(args.seed)
 CPLS = RNG.normal(size=comb(N, 4,exact=True))  # the overall constant factor is 1/sqrt((N choose 4))
 
 def build_GA_group(group_idx, n_groups):
+    logging.debug(f'building GA group [{group_idx}/n_groups] ...')
     op_group = zero()
     ops = []
     coeffs = []
@@ -57,11 +58,9 @@ def build_GA_group(group_idx, n_groups):
     if group_idx == n_groups-1:
         iterator_group = iterator[group_idx*len(iterator)//n_groups:]
     else:
-        iterator_group = iterator[group_idx*len(iterator)//n_groups: \
-            (group_idx+1)*len(iterator)//n_groups]
+        iterator_group = iterator[group_idx*len(iterator)//n_groups: (group_idx+1)*len(iterator)//n_groups]
     # inds1 is a tuple of 4 indices
-    for i1, inds1 in enumerate(iterator_group, \
-        start=group_idx*len(iterator)//n_groups):
+    for i1, inds1 in enumerate(iterator_group, start=group_idx*len(iterator)//n_groups):
         for i2, inds2 in enumerate(iterator):
             cdnl = len(set(inds1).union(set(inds2)))
             if cdnl == 6 or cdnl == 8:

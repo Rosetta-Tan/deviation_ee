@@ -35,7 +35,9 @@ def pipeline(Ls, seeds, betas, dir):
                 
 
 if __name__ == '__main__':
-    Ls = np.arange(18, 19, 2)
+    # Ls = np.arange(18, 19, 2)
+    Ls = [14]
+    # seeds = list(range(0, 1))
     seeds = [0]
     betas = np.linspace(-0.01, 0.01, 11)
     dir = '/n/home01/ytan/scratch/deviation_ee/msc_npy_GA'
