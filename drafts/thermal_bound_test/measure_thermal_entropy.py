@@ -118,7 +118,28 @@ def test_extend_v(v, L):
     assert v_ext.shape == (2**L,), f'v_ext shape: {v_ext.shape}'
 '''
 
-def get_v_rdm(v, LA) -> np.ndarray:
+def extend_v(v, L) -> np.ndarray:
+    """
+    Extend the loaded state vector into full Hilbert space.
+    Return:
+        v_ext: shape (2**L,), the extended state vector
+    """
+    v = v.to_numpy()
+    v_ext = np.zeros(2**L, dtype=np.complex128)
+    for i in range(2**L):
+        i_binstr = np.binary_repr(i, width=L)
+        # interleave even and odd basis
+        if i_binstr.count('1') % 2 == 0:
+            v_ext[i] = v[i // 2]
+        else:
+            v_ext[i] = 0
+    return v_ext
+
+def test_extend_v(v, L):
+    v_ext = extend_v(v, L)
+    assert v_ext.shape == (2**L,), f'v_ext shape: {v_ext.shape}'
+
+def get_v_rdm(v_ext, LA) -> np.ndarray:
     """
     Get reduced density matrix from the extended state vector.
     Need to use this method because it saves memory.
@@ -126,18 +147,31 @@ def get_v_rdm(v, LA) -> np.ndarray:
     2**L x 2**L full matrix. Will cause memory error.
 
     Parameters:
-        v: dynamite.states.State, the state vector
+        # v: dynamite.states.State, the state vector
+        v_ext: np.ndarray((2**L,), dtype=complex), the extended state vector
 
     Return:
         rdm: np.ndarray((2**LA, 2**LA), dtype=complex), 
             the reduced density matrix
     """
     logging.info(f'calculate reduced density matrix: LA={LA} ...')
-    rdm = reduced_density_matrix(v, np.arange(LA))
+    # rdm = reduced_density_matrix(v, np.arange(LA))
+    L = int(np.log2(len(v)))
+    rdm = np.zeros((2**LA, 2**LA), dtype=np.complex128)
+    for i in range(2**LA):
+        for j in range(2**LA):
+            for k in range(2**(L-LA)):
+                # vary the first (L-LA) bits
+                row_ind = k * 2**LA + i
+                col_ind = k * 2**LA + j
+                # Pictorially using |i >< j| to help understand,
+                # |i><j| is not the actual matrix element
+                rdm[i, j] += v_ext[row_ind] * np.conj(v_ext[col_ind])
+    
     return rdm
 
-def test_v_rdm(v, LA):
-    rdm = get_v_rdm(v, LA)
+def test_v_rdm(v_ext, LA):
+    rdm = get_v_rdm(v_ext, LA)
     assert rdm.shape == (2**LA, 2**LA), f'rdm shape: {rdm.shape}'
     assert np.allclose(np.trace(rdm), 1), f'trace of rdm: {np.trace(rdm)}'
 
@@ -227,10 +261,8 @@ def test():
     logging.debug(f'thermal energy: {thermal_energy(GA, beta)}')
     test_load_GA(args.L, args.LA, args.seed)
     v = load_state_vec(args.L, args.seed, args.tol)
-    # test_load_state_vec(args.L, args.seed, args.tol)
-    # test_extend_v(v, args.L)
-    # v_ext = extend_v(v, args.L)
-    test_v_rdm(v, args.LA)
+    v_ext = extend_v(v, args.L)
+    test_v_rdm(v_ext, args.LA)
     
 
 if __name__ == '__main__':
