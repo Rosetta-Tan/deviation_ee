@@ -5,12 +5,14 @@ import matplotlib.pyplot as plt
 plt.style.use('../figures/norm.mplstyle')
 from scipy.optimize import curve_fit
 
-Ls = list(range(12, 27, 2))
+# Ls = list(range(12, 27, 2))
+Ls = [12, 14, 16, 18]
 nseeds = 20
 tols = [0.1, 0.01, 0.001]
 obs_dir = '/n/home01/ytan/scratch/deviation_ee/obs_syk'
 
 # get simulation data
+# ees: {tol1: [[seed1, seed2, ...], ...], tol2: [[seed1, ...], ...], ...}
 ees = {}
 for tol in tols:
     ees[tol] = []
@@ -22,6 +24,21 @@ for tol in tols:
             for row in reader:
                 ees[tol][-1].append(float(row[2]))
     ees[tol] = np.asarray(ees[tol])
+
+# get thermal entropy data
+# th_ents: {tol1: [[seed1, seed2, ...], ...], tol2: [[seed1, ...], ...], ...}
+th_ents = {}
+for tol in tols:
+    th_ents[tol] = []
+    for L in Ls:
+        th_ents[tol].append([])
+        for seed in range(nseeds):
+            with open(os.path.join(obs_dir, f'thermal_entropy_L={L}_seed={seed}_tol={tol}.csv'), 'r') as file:
+                # content: L, seed, S_thermal
+                reader = csv.reader(file)
+                next(reader)  # skip header
+                th_ents[tol][-1].append(float(row[2]))
+    th_ents[tol] = np.asarray(th_ents[tol])
 
 # get exact page value
 ees_page = []

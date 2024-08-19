@@ -5,13 +5,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dry_run', required=False, action='store_true')
 args = parser.parse_args()
 
-# grid submission
-Ls = range(20, 23, 2)
-seeds = range(0, 20)
-
-# supplementary submission
-
-tols = [1e-1, 1e-2, 1e-3]
+Ls = [14]
+seeds = [9,10,11,15,16,17]
+tols = [0.1]
 
 # task 20240404
 # JOBNAME = 'solve_syk_powermethod'

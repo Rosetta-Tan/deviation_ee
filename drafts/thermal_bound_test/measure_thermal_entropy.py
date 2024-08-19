@@ -124,13 +124,13 @@ def extend_v(v, L) -> np.ndarray:
     Return:
         v_ext: shape (2**L,), the extended state vector
     """
-    v = v.to_numpy()
+    v_np = v.to_numpy()
     v_ext = np.zeros(2**L, dtype=np.complex128)
     for i in range(2**L):
         i_binstr = np.binary_repr(i, width=L)
         # interleave even and odd basis
         if i_binstr.count('1') % 2 == 0:
-            v_ext[i] = v[i // 2]
+            v_ext[i] = v_np[i // 2]
         else:
             v_ext[i] = 0
     return v_ext
@@ -156,7 +156,7 @@ def get_v_rdm(v_ext, LA) -> np.ndarray:
     """
     logging.info(f'calculate reduced density matrix: LA={LA} ...')
     # rdm = reduced_density_matrix(v, np.arange(LA))
-    L = int(np.log2(len(v)))
+    L = int(np.log2(len(v_ext)))
     rdm = np.zeros((2**LA, 2**LA), dtype=np.complex128)
     for i in range(2**LA):
         for j in range(2**LA):
@@ -246,7 +246,8 @@ def thermal_entropy(GA, beta, save=False):
 def pipeline(L, LA, seed, tol):
     GA = load_GA(L, LA, seed)
     v = load_state_vec(L, seed, tol)
-    v_rdm = get_v_rdm(v, LA)
+    v_ext = extend_v(v, L)
+    v_rdm = get_v_rdm(v_ext, LA)
     expt_GA = expt_GA_rdm(GA, v_rdm)
     logging.debug(f'expectation value of GA: {expt_GA}')
     expression = lambda beta: diff_GA_expt_thermal(expt_GA, GA, beta)
@@ -254,6 +255,7 @@ def pipeline(L, LA, seed, tol):
     logging.info(f'root finding: beta={beta}, iterations={iters}')
     S_thermal = thermal_entropy(GA, beta, save=args.save)
     logging.info(f'calculate thermal entropy: S_thermal={S_thermal}')
+    logging.info(f'maximal thermal entropy: LA*log2={LA*np.log(2)}')
 
 def test():
     GA = load_GA(args.L, args.LA, args.seed)

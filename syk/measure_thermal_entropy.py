@@ -44,11 +44,6 @@ if args.gpu:
     config.initialize(gpu=True)
 config.shell=True  # not using shift-and-invert, so can use shell matrix
 
-def save_data(csv_filepath, *data, append=True):
-    with open(csv_filepath, 'a' if append else 'w') as file:
-        writer = csv.writer(file)
-        writer.writerow([args.L, args.seed, *data])
-
 def load_GA(L, LA, seed) -> np.ndarray:
     """
     Load the subsystem Hamiltonian GA from file.
@@ -118,7 +113,28 @@ def test_extend_v(v, L):
     assert v_ext.shape == (2**L,), f'v_ext shape: {v_ext.shape}'
 '''
 
-def get_v_rdm(v, LA) -> np.ndarray:
+def extend_v(v, L) -> np.ndarray:
+    """
+    Extend the loaded state vector into full Hilbert space.
+    Return:
+        v_ext: shape (2**L,), the extended state vector
+    """
+    v_np = v.to_numpy()
+    v_ext = np.zeros(2**L, dtype=np.complex128)
+    for i in range(2**L):
+        i_binstr = np.binary_repr(i, width=L)
+        # interleave even and odd basis
+        if i_binstr.count('1') % 2 == 0:
+            v_ext[i] = v_np[i // 2]
+        else:
+            v_ext[i] = 0
+    return v_ext
+
+def test_extend_v(v, L):
+    v_ext = extend_v(v, L)
+    assert v_ext.shape == (2**L,), f'v_ext shape: {v_ext.shape}'
+
+def get_v_rdm(v_ext, LA) -> np.ndarray:
     """
     Get reduced density matrix from the extended state vector.
     Need to use this method because it saves memory.
@@ -126,18 +142,31 @@ def get_v_rdm(v, LA) -> np.ndarray:
     2**L x 2**L full matrix. Will cause memory error.
 
     Parameters:
-        v: dynamite.states.State, the state vector
+        # v: dynamite.states.State, the state vector
+        v_ext: np.ndarray((2**L,), dtype=complex), the extended state vector
 
     Return:
         rdm: np.ndarray((2**LA, 2**LA), dtype=complex), 
             the reduced density matrix
     """
     logging.info(f'calculate reduced density matrix: LA={LA} ...')
-    rdm = reduced_density_matrix(v, np.arange(LA))
+    # rdm = reduced_density_matrix(v, np.arange(LA))
+    L = int(np.log2(len(v_ext)))
+    rdm = np.zeros((2**LA, 2**LA), dtype=np.complex128)
+    for i in range(2**LA):
+        for j in range(2**LA):
+            for k in range(2**(L-LA)):
+                # vary the first (L-LA) bits
+                row_ind = k * 2**LA + i
+                col_ind = k * 2**LA + j
+                # Pictorially using |i >< j| to help understand,
+                # |i><j| is not the actual matrix element
+                rdm[i, j] += v_ext[row_ind] * np.conj(v_ext[col_ind])
+    
     return rdm
 
-def test_v_rdm(v, LA):
-    rdm = get_v_rdm(v, LA)
+def test_v_rdm(v_ext, LA):
+    rdm = get_v_rdm(v_ext, LA)
     assert rdm.shape == (2**LA, 2**LA), f'rdm shape: {rdm.shape}'
     assert np.allclose(np.trace(rdm), 1), f'trace of rdm: {np.trace(rdm)}'
 
@@ -189,7 +218,7 @@ def root_find(expression, beta0=-0.1, beta1=0.1):
     sol = root_scalar(expression, bracket=[beta0, beta1])
     return sol.root, sol.iterations
     
-def thermal_entropy(GA, beta, save=False):
+def thermal_entropy(GA, beta, save=False, append=True):
     """
     Calculate the thermal bound Delta S = S_vN(rho_GA(beta)), at the calculated beta.
     Here S_vN is the von-Neumann entropy.
@@ -202,24 +231,33 @@ def thermal_entropy(GA, beta, save=False):
     if save:
         csv_filepath = os.path.join(args.obs_dir, \
             f"thermal_entropy_L={args.L}_seed={args.seed}_tol={args.tol}.csv")
-        if not os.path.exists(csv_filepath):
-            with open(csv_filepath, 'w') as file:
+    
+        if append:
+            with open(csv_filepath, 'a') as file:
                 writer = csv.writer(file)
-                writer.writerow(['L','seed','beta','S_thermal'])
-        save_data(csv_filepath, beta, S_thermal, append=True)
+                writer.writerow([args.L, args.seed, beta, S_thermal])
+        else:
+            if not os.path.exists(csv_filepath):
+                with open(csv_filepath, 'w') as file:
+                    writer = csv.writer(file)
+                    writer.writerow(['L','seed','beta','S_thermal'])
+                    writer.writerow([args.L, args.seed, beta, S_thermal])
+
     return S_thermal
 
 def pipeline(L, LA, seed, tol):
     GA = load_GA(L, LA, seed)
     v = load_state_vec(L, seed, tol)
-    v_rdm = get_v_rdm(v, LA)
+    v_ext = extend_v(v, L)
+    v_rdm = get_v_rdm(v_ext, LA)
     expt_GA = expt_GA_rdm(GA, v_rdm)
     logging.debug(f'expectation value of GA: {expt_GA}')
     expression = lambda beta: diff_GA_expt_thermal(expt_GA, GA, beta)
     beta, iters = root_find(expression)
     logging.info(f'root finding: beta={beta}, iterations={iters}')
-    S_thermal = thermal_entropy(GA, beta, save=args.save)
+    S_thermal = thermal_entropy(GA, beta, save=args.save, append=False)
     logging.info(f'calculate thermal entropy: S_thermal={S_thermal}')
+    logging.info(f'maximal thermal entropy: LA*log2={LA*np.log(2)}')
 
 def test():
     GA = load_GA(args.L, args.LA, args.seed)
@@ -227,10 +265,8 @@ def test():
     logging.debug(f'thermal energy: {thermal_energy(GA, beta)}')
     test_load_GA(args.L, args.LA, args.seed)
     v = load_state_vec(args.L, args.seed, args.tol)
-    # test_load_state_vec(args.L, args.seed, args.tol)
-    # test_extend_v(v, args.L)
-    # v_ext = extend_v(v, args.L)
-    test_v_rdm(v, args.LA)
+    v_ext = extend_v(v, args.L)
+    test_v_rdm(v_ext, args.LA)
     
 
 if __name__ == '__main__':

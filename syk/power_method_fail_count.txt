@@ -1,2 +1,0 @@
-L=14, seed=10 not done
-L=14, seed=51 not done
