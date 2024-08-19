@@ -140,3 +140,12 @@ output_spinchain_old/
 
 # dynamite
 *.dynamite
+
+.DS_Store
+.jupyter/
+.local/
+.cache/
+.vscode/
+
+
+data/
