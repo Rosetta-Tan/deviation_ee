@@ -1,5 +1,4 @@
 import subprocess as sp
-import sys
 
 def workflow(L, seed, tol):
     stdout1 = sp.run(["sbatch", "build_syk.sh", str(L), str(seed)],
