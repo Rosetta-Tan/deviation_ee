@@ -7,8 +7,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dry_run', required=False, action='store_true')
 args = parser.parse_args()
 
-Ls = range(14, 15, 2)
-seeds = range(0, 1)
+Ls = range(20, 21, 2)
+seeds = [0, 9, 11]
+# , 15, 16, 17]
 
 # mapping from L to memory requirement
 memory_config = {
@@ -16,7 +17,7 @@ memory_config = {
   "14": "1G",
   "16": "2G",
   "18": "4G",
-  "20": "8G",
+  "20": "40G",
   "22": "16G",
   "24": "32G",
   "26": "120G",
@@ -87,7 +88,7 @@ for L in Ls:
 #SBATCH -n 1                # Number of tasks
 #SBATCH -N 1                # Ensure that all cores are on one machine
 #SBATCH --mem={memory_requirement}       # Memory pool for all cores (see also --mem-per-cpu)
-#SBATCH -p gpu_test
+#SBATCH -p gpu,gpu_requeue
 #SBATCH --gres=gpu:1
 # #SBATCH --constraint="a100"
 

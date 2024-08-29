@@ -7,9 +7,9 @@ parser.add_argument('--resume', dest='resume', type=int, required=False, default
 args = parser.parse_args()
 
 # grid submission
-Ls = [14]
-seeds = [7,8]
-tols = [0.01]
+Ls = [12, 14, 16, 18]
+seeds = [i for i in range(20)]
+tols = [0.1, 0.01, 0.001]
 
 JOBNAME = 'syk_thermal'
 dir = '/n/home01/ytan/scratch/deviation_ee/output/2024602_thermal_bound'

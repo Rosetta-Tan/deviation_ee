@@ -170,14 +170,28 @@ def test_v_rdm(v_ext, LA):
     assert rdm.shape == (2**LA, 2**LA), f'rdm shape: {rdm.shape}'
     assert np.allclose(np.trace(rdm), 1), f'trace of rdm: {np.trace(rdm)}'
 
-def expt_GA_rdm(GA, v_rdm):
+def expt_GA_rdm(GA, v_rdm, save=False, append=True):
     """
     Prepare the data for diff_GA_expt_thermal,
     so that in root finding, these calculations are not repeated.
     """
     logging.info(f'measure GA expectation value ...')
     expt = np.trace(GA @ v_rdm).real
+
+    if save:
+        csv_filepath = os.path.join(args.obs_dir, \
+            f"expt_GA_L={args.L}_seed={args.seed}_tol={args.tol}.csv")
     
+        if append:
+            with open(csv_filepath, 'a') as file:
+                writer = csv.writer(file)
+                writer.writerow([args.L, args.seed, expt])
+        else:
+            with open(csv_filepath, 'w') as file:
+                writer = csv.writer(file)
+                writer.writerow(['L','seed','expt_GA'])
+                writer.writerow([args.L, args.seed, expt])
+
     return expt
 
 def thermal_energy(GA, beta):
@@ -237,11 +251,10 @@ def thermal_entropy(GA, beta, save=False, append=True):
                 writer = csv.writer(file)
                 writer.writerow([args.L, args.seed, beta, S_thermal])
         else:
-            if not os.path.exists(csv_filepath):
-                with open(csv_filepath, 'w') as file:
-                    writer = csv.writer(file)
-                    writer.writerow(['L','seed','beta','S_thermal'])
-                    writer.writerow([args.L, args.seed, beta, S_thermal])
+            with open(csv_filepath, 'w') as file:
+                writer = csv.writer(file)
+                writer.writerow(['L','seed','beta','S_thermal'])
+                writer.writerow([args.L, args.seed, beta, S_thermal])
 
     return S_thermal
 
@@ -250,7 +263,7 @@ def pipeline(L, LA, seed, tol):
     v = load_state_vec(L, seed, tol)
     v_ext = extend_v(v, L)
     v_rdm = get_v_rdm(v_ext, LA)
-    expt_GA = expt_GA_rdm(GA, v_rdm)
+    expt_GA = expt_GA_rdm(GA, v_rdm, save=args.save, append=False)
     logging.debug(f'expectation value of GA: {expt_GA}')
     expression = lambda beta: diff_GA_expt_thermal(expt_GA, GA, beta)
     beta, iters = root_find(expression)

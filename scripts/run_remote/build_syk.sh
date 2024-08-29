@@ -2,13 +2,13 @@
 #SBATCH -J build_syk
 #SBATCH --account=yao_lab
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH -o %A_%a.out
-#SBATCH -e %A_%a.err
-#SBATCH -t 0-12:00:00
+#SBATCH -o /n/home01/ytan/scratch/deviation_ee/output/workflow/%j_bs.out
+#SBATCH -e /n/home01/ytan/scratch/deviation_ee/output/workflow/%j_bs.err
+#SBATCH -t 2-00:00:00
 #SBATCH -n 1
 #SBATCH -N 1
 #SBATCH --mem=20G
-#SBATCH -p gpu_test
+#SBATCH -p yao_gpu
 #SBATCH --gres=gpu:1
 
 L=$1

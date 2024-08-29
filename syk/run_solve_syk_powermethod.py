@@ -5,9 +5,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dry_run', required=False, action='store_true')
 args = parser.parse_args()
 
-Ls = [14]
-seeds = [9,10,11,15,16,17]
-tols = [0.1]
+Ls = [18]
+seeds = [5]
+tols = [0.001]
 
 # task 20240404
 # JOBNAME = 'solve_syk_powermethod'
