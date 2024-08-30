@@ -5,70 +5,97 @@ import os
 import csv
 import logging
 import argparse
+from typing import Literal
 import numpy as np
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--L', type=int, required=True, help='system size')
+parser.add_argument('--mode',
+                    type=str,
+                    required=False, 
+                    default='workflow',
+                    choices=['workflow', 'clean', 'all'],
+                    help='task mode')
 args = parser.parse_args()
+
+# Usage:
+# python batch_job.py --L 12 --mode workflow
+# cd /home/yitan/Coding/deviation_ee/data/obs_syk | cat expt_GA_L=12_report.csv
 
 def check_syk_msc(L, seed, data_dir):
     data_dir = os.path.join(data_dir, "msc_syk")
     msc_file = os.path.join(data_dir, f"H_L={L}_seed={seed}.msc")
     if not os.path.isfile(msc_file):
-        logging.debug(f"{msc_file} not found")
-        return False
-    return True
+        logging.info(f"msc_syk [{L}, {seed}] not found, start building ...")
+        raise FileNotFoundError
 
 def check_syk_vec(L, seed, tol, data_dir):
     data_dir = os.path.join(data_dir, "vec_syk_pm_z2_newtol")
     vec_file = os.path.join(data_dir, f"v_L={L}_seed={seed}_tol={tol}.vec")
     if not os.path.isfile(vec_file):
-        logging.debug(f"{vec_file} not found")
-        return False
-    return True
+        logging.info(f"vec [{L}, {seed}, {tol}] not found, start building ...")
+        raise FileNotFoundError
 
 def check_GA(L, seed, data_dir):
     LA = L // 2
     data_dir = os.path.join(data_dir, "msc_npy_GA")
     GA_file = os.path.join(data_dir, f"GA_L={L}_LA={LA}_seed={seed}_dnm_decmp.npy")
     if not os.path.exists(GA_file):
-        logging.debug(f"{GA_file} not found")
-        return False
-    return True
+        logging.info(f"GA_npy [{L}, {seed}] not found, start building ...")
+        raise FileNotFoundError
 
 def build_syk(L, seed, exec):
-    args = shlex.split(exec + f" syk/build_syk.py --L {L} --seed {seed} --dirc ./ --gpu 1")
+    # need to grant o+w permission to all data/* subdirectory
+    args = shlex.split(exec + f" syk/build_syk.py --L {L} --seed {seed} --msc_dir data/msc_syk --gpu 1")
     res = sp.run(args, capture_output=True)
-    return res.returncode
+    if res.returncode != 0:
+        logging.debug(f"build_syk failed\n \
+                      {res.stdout.decode('utf-8')} \
+                        {res.stderr.decode('utf-8')}")
+        raise Exception
 
-def solve_syk_powermethod(L, seed, tol):
-    args = shlex.split(exec + f" syk/solve_syk_powermethod.py --L {L} --seed {seed} --tol {tol}")
+def solve_syk_powermethod(L, seed, tol, exec):
+    args = shlex.split(exec + f" syk/solve_syk_powermethod.py --L {L} --seed {seed} --tol {tol} --msc_dir data/msc_syk --vec_dir data/vec_syk_pm_z2_newtol --gpu")
     res = sp.run(args, capture_output=True)
-    return res.returncode
+    if res.returncode != 0:
+        logging.debug(f"solve_syk_powermethod failed\n \
+                        {res.stdout.decode('utf-8')} \
+                        {res.stderr.decode('utf-8')}")
+        raise Exception
 
 def build_GA(L, seed, exec):
-    args = shlex.split(exec + f" syk/build_GA.py --L {L} --seed {seed}")
+    LA = L // 2
+    args = shlex.split(exec + f" syk/build_GA.py --L {L} --LA {LA} --seed {seed} --msc_dir data/msc_npy_GA --gpu 1")
     res = sp.run(args, capture_output=True)
-    return res.returncode
+    if res.returncode != 0:
+        logging.debug(f"build_GA failed\n \
+                        {res.stdout.decode('utf-8')} \
+                        {res.stderr.decode('utf-8')}")
+        raise Exception
 
 def measure_th(L, seed, tol, exec):
-    args = shlex.split(exec + f" syk/measure_thermal_entropy.py --L {L} --seed {seed} --tol {tol}")
+    LA = L // 2
+    args = shlex.split(exec + f" syk/measure_thermal_entropy.py --L {L} --LA {LA} --seed {seed} --tol {tol} --op_dir data/msc_npy_GA --vec_dir data/vec_syk_pm_z2_newtol --obs_dir data/obs_syk --gpu --save")
     res = sp.run(args, capture_output=True)
-    return res.returncode
+    if res.returncode != 0:
+        logging.debug(f"measure_th failed\n \
+                        {res.stdout.decode('utf-8')} \
+                        {res.stderr.decode('utf-8')}")
+        raise Exception
 
 def gen_expt_GA_report(L, seeds, tols, data_dir):
     data_dir = os.path.join(data_dir, "obs_syk")
     expt_GA_data = np.zeros((len(tols), len(seeds)))
-    for iseed, seed in enumerate(seeds):
-        for itol, tol in enumerate(tols):
+    for iseed, seed in tqdm(enumerate(seeds), desc="gen_expt_GA_report"):
+        for itol, tol in tqdm(enumerate(tols), desc="gen_expt_GA_report_tol"):
             expt_GA_file = os.path.join(
                                 data_dir,
-                                f"expt_GA_L={L}_seed={seed}_tol={tol}.csv")    
+                                f"expt_GA_L={L}_seed={seed}_tol={tol}.csv")
             with open(expt_GA_file, 'r') as f:
                 rows = list(csv.reader(f))
                 expt_GA_data[itol, iseed] = float(rows[1][2])
 
-    
     expt_GA_avg = np.mean(expt_GA_data, axis=1)
     expt_GA_std = np.std(expt_GA_data, axis=1)
     expt_GA_max = np.max(expt_GA_data, axis=1)
@@ -85,48 +112,82 @@ def gen_expt_GA_report(L, seeds, tols, data_dir):
                              expt_GA_min[itol]])
     
 def wf_line_one(L, seeds, tols, exec, data_dir):
-    for seed in seeds:
+    for seed in tqdm(seeds, desc="wf_line_one"):
         try:
+            logging.debug(f"Checking syk_msc [{L}, {seed}]")
             check_syk_msc(L, seed, data_dir)
         except Exception as e:
-            logging.debug(e)
-            build_syk_res = build_syk(L, seed, exec)
-            if build_syk_res != 0:
-                logging.debug(f"build_syk failed with code {build_syk_res}")
-                return False
+            try:
+                build_syk(L, seed, exec)
+            except Exception as e:
+                raise e
         
         try:
             for tol in tols:
                 check_syk_vec(L, seed, tol, data_dir)
         except Exception as e:
-            logging.debug(e)
-            for tol in tols:
-                solve_vec_res = solve_syk_powermethod(L, seed, tol)
-                if solve_vec_res != 0:
-                    logging.debug(f"solve_syk_powermethod failed with code {solve_vec_res}")
-                    return False
-            
-        return True
+            try:
+                solve_syk_powermethod(L, seed, tol, exec)
+            except Exception as e:
+                raise e
 
 def wf_line_two(L, seeds, tols, exec, data_dir):
-    for seed in seeds:
+    for seed in tqdm(seeds, desc="wf_line_two"):
         try:
             check_GA(L, seed, data_dir)
         except Exception as e:
-            logging.debug(e)
             for tol in tols:
-                measure_th_res = measure_th(L, seed, tol, exec)
-                if measure_th_res != 0:
-                    logging.debug(f"measure_th failed with code {measure_th_res}")
-                    return False
+                try:
+                    build_GA(L, seed, exec)
+                except Exception as e:
+                    raise e
     return True
 
 def workflow(L, seeds, tols, exec, data_dir):
-    if not wf_line_one(L, seeds, tols, exec, data_dir):
-        return False
-    if not wf_line_two(L, seeds, tols, exec, data_dir):
-        return False
+    try:
+        wf_line_one(L, seeds, tols, exec, data_dir)
+    except Exception as e:
+        return
+    try:
+        wf_line_two(L, seeds, tols, exec, data_dir)
+    except Exception as e:
+        return
     gen_expt_GA_report(L, seeds, tols, data_dir)
+
+def clean(L, seeds, tols, data_dir_base):
+    data_dir = os.path.join(data_dir_base, "msc_syk")
+    for seed in tqdm(seeds, desc="Cleaning msc_syk"):
+        msc_file = os.path.join(data_dir, f"H_L={L}_seed={seed}.msc")
+        if os.path.isfile(msc_file):
+            os.remove(msc_file)
+    
+    data_dir = os.path.join(data_dir_base, "vec_syk_pm_z2_newtol")
+    for seed in tqdm(seeds, desc="Cleaning vec_syk_pm_z2_newtol"):
+        for tol in tols:
+            vec_file = os.path.join(data_dir, f"v_L={L}_seed={seed}_tol={tol}.vec")
+            metadata_file = os.path.join(data_dir, f"v_L={L}_seed={seed}_tol={tol}.metadata")
+            if os.path.isfile(vec_file):
+                os.remove(vec_file)
+            if os.path.isfile(metadata_file):
+                os.remove(metadata_file)
+    
+    data_dir = os.path.join(data_dir_base, "msc_npy_GA")
+    for seed in tqdm(seeds, desc="Cleaning msc_npy_GA"):
+        LA = L // 2
+        GA_file = os.path.join(data_dir, f"GA_L={L}_LA={LA}_seed={seed}_dnm_decmp.npy")
+        if os.path.isfile(GA_file):
+            os.remove(GA_file)
+    
+    data_dir = os.path.join(data_dir_base, "obs_syk")
+    for seed in tqdm(seeds, desc="Cleaning obs_syk"):
+        for tol in tols:
+            expt_GA_file = os.path.join(data_dir, f"expt_GA_L={L}_seed={seed}_tol={tol}.csv")
+            if os.path.isfile(expt_GA_file):
+                os.remove(expt_GA_file)
+    
+    expt_GA_report = os.path.join(data_dir, f"expt_GA_L={L}_report.csv")
+    if os.path.isfile(expt_GA_report):
+        os.remove(expt_GA_report)
     
 if __name__ == '__main__':
     from config import config
@@ -140,4 +201,10 @@ if __name__ == '__main__':
     seeds = [i for i in range(20)]
     tols = [0.1, 0.01, 0.001]
     
-    workflow(L, seeds, tols, executable, data_dir)
+    if args.mode == 'workflow':
+        workflow(L, seeds, tols, executable, data_dir)
+    elif args.mode == 'clean':
+        clean(L, seeds, tols, data_dir)
+    elif args.mode == 'all':
+        clean(L, seeds, tols, data_dir)
+        workflow(L, seeds, tols, executable, data_dir)
