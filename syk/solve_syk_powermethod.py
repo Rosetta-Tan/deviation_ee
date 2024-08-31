@@ -25,12 +25,13 @@ logging.basicConfig(level=logging.DEBUG,
                     handlers=[FlushStreamHandler()])
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-L', type=int, required=True, help='system size')
-parser.add_argument('-J', type=float, required=False, default=1.0, help='coupling strength')
+parser.add_argument('--L', type=int, required=True, help='system size')
+parser.add_argument('--J', type=float, required=False, default=1.0, help='coupling strength')
 parser.add_argument('--seed', type=int, required=True, help='sample seed')
 parser.add_argument('--msc_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/msc_syk',  help='msc file directory')
-parser.add_argument('--log_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/output',  help='log file directory')
+parser.add_argument('--eval_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/extrm_eigval',  help='eigenvalue file directory')
 parser.add_argument('--vec_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/vec_syk/powermethod',  help='vector file directory')   # for saving the evolved state
+parser.add_argument('--log_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/output',  help='log file directory')
 parser.add_argument('--tol', type=float, required=False, default=1e-9, help='tolerance coefficient of energy variance of states for power method')
 parser.add_argument('--gpu', required=False, action='store_true', help='use GPU')
 args = parser.parse_args()
@@ -52,16 +53,17 @@ if not os.path.isdir(args.msc_dir):
 if not os.path.isdir(args.vec_dir):
     os.mkdir(args.vec_dir)
 
-def get_extrm_eigval(L, seed):
-    with open('/n/home01/ytan/deviation_ee/syk/extrm_eigvals.csv', 'r') as file:
-        reader = csv.reader(file)
-        rows = list(reader)
-        for i in range(1, len(rows)):
-            if int(rows[i][0]) == L and int(rows[i][1]) == seed:
-                return float(rows[i][2])
-    return None
+def get_extrm_eigval(L, seed, eval_dir=args.eval_dir):
+    filepath = os.path.join(eval_dir, f'eval_L={L}_seed={seed}.npy')
+    # eval is a 1D numpy array
+    eval = np.load(filepath)
+    return eval[0]
 
 LAMBDA = abs(get_extrm_eigval(L, seed))+0.001  # the tolerance was set to ~1e-5, so we add 0.001 to the largest eigenvalue
+
+def cal_energy_expt(H, v):
+    Hv = H.dot(v)
+    return v.dot(Hv).real
 
 def cal_energy_variance(H, v):
     Hv = H.dot(v)
@@ -132,10 +134,10 @@ def power_method_like_evol(H, op1, op2, v0, tol):
 
 def main():
     start = default_timer()
-    H = (1/4) * load_H(L=L, seed=seed)  # the factor 1/4 is because I used the wrong normalization when building the Hamiltonian
+    H = load_H(L=L, seed=seed)  # the factor 1/4 is because I used the wrong normalization when building the Hamiltonian
     logging.info(f'load Hamiltonian, L={L}, seed={seed}, to be solved at tol {tol}; time elapsed: {timedelta(seconds=default_timer()-start)}')
-    op1 = (LAMBDA/4)*identity() - H  # the same 1/4 factor here
-    op2 = (LAMBDA/4)*identity() + H  # the same 1/4 factor here
+    op1 = LAMBDA * identity() - H  # the same 1/4 factor here
+    op2 = LAMBDA * identity() + H  # the same 1/4 factor here
     logging.info(f'construct the two operators involved in power method, L={L}, seed={seed}; time elapsed: {timedelta(seconds=default_timer()-start)}')
     
     # check whether v0 has been saved

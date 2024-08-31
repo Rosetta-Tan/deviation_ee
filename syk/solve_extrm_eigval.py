@@ -24,8 +24,8 @@ logging.basicConfig(level=logging.DEBUG,
                     handlers=[FlushStreamHandler()])
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-L', type=int, required=True, help='system size')
-parser.add_argument('-J', type=float, required=False, default=1.0, help='coupling strength')
+parser.add_argument('--L', type=int, required=True, help='system size')
+parser.add_argument('--J', type=float, required=False, default=1.0, help='coupling strength')
 parser.add_argument('--seed', type=int, required=True, help='sample seed')
 parser.add_argument('--msc_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/msc_syk',  help='msc file directory')
 parser.add_argument('--log_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/output/solve_extrm_eigvals',  help='log directory')
@@ -57,13 +57,11 @@ def main():
     start = default_timer() 
     H = load_H()
     logging.info(f'load Hamiltonian, L={L}, seed={seed}; time elapsed: {timedelta(0,default_timer()-start)}')
-    evals = H.eigsolve(which='exterior', tol=1e-5)    
-    logging.info(f'ED solve H extremal eigval, L={L}, seed={seed}; time elapsed: {timedelta(0,default_timer()-start)}')
+    eval = H.eigsolve(which='exterior', tol=1e-5)  # eval is a 1D numpy array
+    logging.info(f'solve H extremal eigval, L={L}, seed={seed}; time elapsed: {timedelta(0,default_timer()-start)}')
     
     # save data
-    np.savez(os.path.join(args.log_dir, f'evals_L={L}_seed={seed}.npz'), evals=evals)
-    np.savez(os.path.join(args.res_dir, f'evals_L={L}_seed={seed}.npz'), evals=evals)
-    print(f'L={L}, seed={seed}, evals={evals}')
+    np.save(os.path.join(args.res_dir, f'eval_L={L}_seed={seed}.npy'), eval)
 
 if __name__ == '__main__':
     main()

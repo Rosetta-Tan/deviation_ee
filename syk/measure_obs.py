@@ -32,7 +32,7 @@ class RangeAction(argparse.Action):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--L', type=int, help='system size')
-parser.add_argument('--seeds', action=RangeAction, help='range of seeds')
+parser.add_argument('--seed', type=int, help='sample seed')
 parser.add_argument('--tol', type=float, help='tolerance')
 parser.add_argument('--log_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/output/20240425_powermethod_z2_newtol', help='directory to save log files')
 parser.add_argument('--vec_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/vec_syk_pm_z2_newtol', help='directory to save state vectors')
@@ -41,9 +41,10 @@ parser.add_argument('--obs_dir', type=str, required=False, default='/n/home01/yt
 parser.add_argument('--gpu', required=False, action='store_true', help='use GPU')
 parser.add_argument('--save', type=bool, default=False, help='save data')
 args = parser.parse_args()
-OBS_CONFIG = {"ent_entropy": {"csv_filepath": os.path.join(args.obs_dir, f'ent_entropy_L={args.L}_tol={args.tol}.csv')},
-              "expt_H": {"csv_filepath": os.path.join(args.obs_dir, f'expt_H_L={args.L}_tol={args.tol}.csv')},
-              "ent_entropy_f=0.33": {"csv_filepath": os.path.join(args.obs_dir, f'ent_entropy_f=0.33_L={args.L}_tol={args.tol}.csv')}
+OBS_CONFIG = {"ent_entropy": {"csv_filepath": os.path.join(args.obs_dir, f'ent_entropy_L={args.L}_seed={args.seed}_tol={args.tol}.csv')},
+              "expt_H": {"csv_filepath": os.path.join(args.obs_dir, f'expt_H_L={args.L}_seed={args.seed}_tol={args.tol}.csv')},
+              "expt_H2": {"csv_filepath": os.path.join(args.obs_dir, f'expt_H2_L={args.L}_seed={args.seed}_tol={args.tol}.csv')},
+              "ent_entropy_f=0.33": {"csv_filepath": os.path.join(args.obs_dir, f'ent_entropy_f=0.33_L={args.L}_seed={args.seed}_tol={args.tol}.csv')}
              }
 
 if args.gpu:
@@ -52,37 +53,43 @@ config.shell=True  # not using shift-and-invert, so can use shell matrix
 config.subspace = Parity('even')
 config.L = args.L
 
-def get_hamiltonian(seed):
-    filename_str = f'H_L={args.L}_seed={seed}'
+def get_hamiltonian(L, seed):
+    filename_str = f'H_L={L}_seed={seed}'
     try:
         H = Operator.load(os.path.join(args.msc_dir,f'{filename_str}.msc'))
-        logging.info(f'load Hamiltonian: L={args.L}, seed [{seed}/{list(args.seeds)[-1]}] ...')
+        logging.info(f'load Hamiltonian: L={L}, seed {seed} ...')
         return H
     except:
-        logging.error(f'Hamiltonian file not found: L={args.L}, seed [{seed}/{list(args.seeds)[-1]}] ...')
+        logging.error(f'Hamiltonian file not found: L={L}, seed {seed} ...')
         return None
 
-def get_state_vec(seed):
-    filename_str = f'v_L={args.L}_seed={seed}_tol={args.tol}'
+def get_state_vec(L, seed, tol):
+    filename_str = f'v_L={L}_seed={seed}_tol={tol}'
     try:
         v = State.from_file(os.path.join(args.vec_dir,filename_str))
         print(v.subspace)
-        logging.info(f'load state vec: L={args.L}, seed [{seed}/{list(args.seeds)[-1]}] ...')
+        logging.info(f'load state vec: L={args.L}, seed {seed} ...')
         return v
     except:
-        logging.error(f'state vec file not found: L={args.L}, seed [{seed}/{list(args.seeds)[-1]}] ...')
+        logging.error(f'state vec file not found: L={args.L}, seed {seed} ...')
         return None
 
-def save_data(csv_filepath, seed, data, append=True):
-    with open(csv_filepath, 'a' if append else 'w') as file:
-        writer = csv.writer(file)
-        writer.writerow([args.L, seed, data])
+def save_data(L, seed, data, csv_filepath, append=True):
+    if append == False:
+        with open(csv_filepath, 'w') as file:
+            writer = csv.writer(file)
+            writer.writerow(['L','seed','data'])
+            writer.writerow([L, seed, data])
+    else:
+        with open(csv_filepath, 'a') as file:
+            writer = csv.writer(file)
+            writer.writerow([L, seed, data])
 
-def measure(seed):    
-    v = get_state_vec(seed)
-    H = get_hamiltonian(seed)
+def measure(L, seed, tol):    
+    v = get_state_vec(L, seed, tol)
+    H = get_hamiltonian(L, seed)
     if v is None or H is None:
-        logging.error(f'measurement skipped: L={args.L}, seed [{seed}/{list(args.seeds)[-1]}] ...')
+        logging.error(f'measurement skipped: L={L}, seed {seed} ...')
         return None
     
     if "ent_entropy" in OBS_CONFIG.keys():
@@ -91,11 +98,11 @@ def measure(seed):
                 writer = csv.writer(file)
                 writer.writerow(['L','seed','ee'])
 
-        ee = entanglement_entropy(v, range(args.L//2))
-        logging.info(f'measure ent entropy: L={args.L}, seed [{seed}/{list(args.seeds)[-1]}] ...')
+        ee = entanglement_entropy(v, range(L//2))
+        logging.info(f'measure ent entropy: L={L}, seed {seed} ...')
         if args.save:
             csv_filepath = OBS_CONFIG["ent_entropy"]["csv_filepath"]
-            save_data(csv_filepath, seed, ee)
+            save_data(L, seed, ee, csv_filepath, append=False)
     
     if "expt_H" in OBS_CONFIG.keys():
         if not os.path.exists(OBS_CONFIG["expt_H"]["csv_filepath"]):
@@ -105,10 +112,23 @@ def measure(seed):
         
         print("H dim", H.dim)
         expt_H = v.dot(H.dot(v)).real
-        logging.info(f'measure expt H: L={args.L}, seed [{seed}/{list(args.seeds)[-1]}] ...')
+        logging.info(f'measure expt H: L={L}, seed {seed} ...')
         if args.save:
             csv_filepath = OBS_CONFIG["expt_H"]["csv_filepath"]
-            save_data(csv_filepath, seed, expt_H, append=True)\
+            save_data(L, seed, expt_H, csv_filepath, append=False)
+
+    if "expt_H2" in OBS_CONFIG.keys():
+        if not os.path.exists(OBS_CONFIG["expt_H2"]["csv_filepath"]):
+            with open(OBS_CONFIG["expt_H2"]["csv_filepath"], 'w') as file:
+                writer = csv.writer(file)
+                writer.writerow(['L','seed','expt_H2'])
+        
+        Hv = H.dot(v)
+        expt_H2 = Hv.dot(Hv).real
+        logging.info(f'measure expt H2: L={L}, seed {seed} ...')
+        if args.save:
+            csv_filepath = OBS_CONFIG["expt_H2"]["csv_filepath"]
+            save_data(L, seed, expt_H2, csv_filepath, append=False)
     
     if "ent_entropy_f=0.33" in OBS_CONFIG.keys():
         if not os.path.exists(OBS_CONFIG["ent_entropy_f=0.33"]["csv_filepath"]):
@@ -116,13 +136,11 @@ def measure(seed):
                 writer = csv.writer(file)
                 writer.writerow(['L','seed','ee'])
         
-        ee = entanglement_entropy(v, range(args.L//3))
-        logging.info(f'measure ent entropy f=0.33: L={args.L}, seed [{seed}/{list(args.seeds)[-1]}] ...')
+        ee = entanglement_entropy(v, range(L//3))
+        logging.info(f'measure ent entropy f=0.33: L={L}, seed {seed} ...')
         if args.save:
             csv_filepath = OBS_CONFIG["ent_entropy_f=0.33"]["csv_filepath"]
-            save_data(csv_filepath, seed, ee)
+            save_data(L, seed, ee, csv_filepath, append=False)
 
 if __name__ == '__main__':
-    for seed in args.seeds:
-        measure(seed)
-    
+    measure(args.L, args.seed, args.tol)

@@ -25,7 +25,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--L', type=int, required=True, help='system size')
 parser.add_argument('--J', type=float, required=False, default=1.0, help='coupling strength')
 parser.add_argument('--seed', type=int, required=True, help='sample seed')
-parser.add_argument('--dirc', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/msc_syk',  help='output directory')
+parser.add_argument('--msc_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/msc_syk',  help='data directory')
 parser.add_argument('--gpu', type=int, required=False, default=0, help='use GPU')
 args = parser.parse_args()
 
@@ -38,12 +38,12 @@ config.L = L
 J = args.J
 N = 2*L # number of Majoranas
 seed = args.seed
-msc_dir = args.dirc
+msc_dir = args.msc_dir
 if not os.path.isdir(msc_dir):
-    os.mkdir(msc_dir)
+    os.makedirs(msc_dir)
 
 # cache Majoranas to save time
-M = [sqrt(2)*majorana(idx) for idx in range(0,N)]
+M = [majorana(idx) for idx in range(0,N)]
 RNG = np.random.default_rng(seed)
 CPLS = J*sqrt(24)/np.sqrt(N*(N-1)*(N-2)*(N-3)) * RNG.normal(size=comb(N,4,exact=True))  # the overall constant factor is 1/sqrt((N choose 4))
 
