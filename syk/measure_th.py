@@ -56,13 +56,12 @@ def load_GA(L, LA, seed) -> np.ndarray:
     try:
         GA = np.load(os.path.join(args.op_dir, filename))
         assert GA.shape[0] == 2**LA, f'GA shape: {GA.shape}'
-        assert np.allclose(np.trace(GA), 0), f'trace of GA: {np.trace(GA)}'
-        logging.info(f'load GA: L={L}, LA={LA}, \
-                     seed {seed} ...')
+        assert np.allclose(np.trace(GA), 0), logging.debug(f'trace of GA: {np.trace(GA)}')
+        logging.info(f'load GA: L={L}, LA={LA}, seed {seed} ...')
+        logging.debug(f'trace of GA^2/(2^LA): {np.trace(GA @ GA)/(2**LA)}')
         return GA
     except:
-        logging.error(f'GA file not found: L={L}, LA={LA}, \
-                      seed {seed} ...')
+        logging.error(f'GA file not found: L={L}, LA={LA}, seed {seed} ...')
         return None
     
 def load_state_vec(L, seed, tol):
