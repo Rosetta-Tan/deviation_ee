@@ -60,7 +60,6 @@ void test_four_maj_term(const int L,
     }
 }
 
-
 void test_kronecker() {
     MatrixXcd A(2, 2);
     A << 1, 2, 3, 4;
@@ -86,6 +85,6 @@ void test_union_inds() {
 }
 
 void test_count_unique() {
-    vector<int> inds = {1, 2, 3, 4, 5, 6, 7, 8};
+    vector<int> inds = {0, 1, 2, 3, 0, 1, 2, 3};
     cout << count_unique(inds) << endl;
 }

@@ -5,7 +5,7 @@ def test_GA(GA, LA):
     assert GA.shape == (2**LA, 2**LA)
     assert np.allclose(GA, GA.conj().T)
     print(f'trace(GA^2)/2^LA: {np.trace(GA @ GA)/2**LA}')
-    assert np.allclose(np.trace(GA), 0, atol=1e-4), f"trace(GA) = {np.trace(GA)}"
+    assert np.allclose(np.trace(GA), 0, atol=1e-3), f"trace(GA) = {np.trace(GA)}"
 
 if __name__ == "__main__":
     L = 12

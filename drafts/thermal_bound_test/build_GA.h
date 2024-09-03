@@ -15,6 +15,7 @@ using namespace std::complex_literals;
 using namespace Eigen;
 
 // routines
+vector<double> loadCpls(const string& filename);
 void saveMatrixToFile(const Eigen::MatrixXd& matrix, const string& filename);
 vector<int> combine_inds(const vector<int>& v1, const vector<int>& v2);
 int count_unique(const vector<int>& v);

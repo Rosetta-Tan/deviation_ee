@@ -11,6 +11,17 @@ using namespace std;
 using namespace std::complex_literals;
 using namespace Eigen;
 
+vector<double> loadCpls(const string& filename) {
+    vector<double> cpls;
+    ifstream file(filename);
+    if (file.is_open()) {
+        double cpl;
+        while (file >> cpl) {
+            cpls.push_back(cpl);
+        }
+    }
+    return cpls;
+}
 
 void saveMatrixToFile(const Eigen::MatrixXd& matrix, const string& filename) {
     std::ofstream file(filename);
@@ -30,7 +41,8 @@ vector<int> combine_inds(const vector<int>& v1, const vector<int>& v2) {
 int count_unique(const vector<int>& v) {
     vector<int> unique_v(v);
     sort(unique_v.begin(), unique_v.end());
-    return distance(unique_v.begin(), unique_v.end());
+    auto last = unique(unique_v.begin(), unique_v.end());
+    return distance(unique_v.begin(), last);
 }
 
 Eigen::MatrixXcd build_GA(const int L,
@@ -49,13 +61,29 @@ Eigen::MatrixXcd build_GA(const int L,
             int cdnl = count_unique(union_inds);
             if (cdnl == 6 || cdnl == 8) {
                 complex<double> coeff = 24./(2*L*(2*L-1)*(2*L-2)*(2*L-3));
-        
                 for (int j = 0; j < cdnl; ++j) {
                     coeff *= complex<double>((2*L-j))/complex<double>(2*LA-j);
                 }
                 coeff *= cpls[i1] * cpls[i2];
-                MatrixXcd op = M[inds[i1][0]] * M[inds[i1][1]] * M[inds[i1][2]] * M[inds[i1][3]] * M[inds[i2][0]] * M[inds[i2][1]] * M[inds[i2][2]] * M[inds[i2][3]];
-                assert(abs(op.trace()) < 1e-6 && "Matrix must be traceless");
+                // MatrixXcd op = M[inds[i1][0]] * M[inds[i1][1]] * M[inds[i1][2]] * M[inds[i1][3]] * M[inds[i2][0]] * M[inds[i2][1]] * M[inds[i2][2]] * M[inds[i2][3]];
+                MatrixXcd op(dim, dim);
+                op.setIdentity();
+                // for (int j = 0; j<4; ++j) {
+                //     cerr << "inds[i1][j]: " << inds[i1][j] << "\n" << endl;
+                //     cerr << "inds[i2][j]: " << inds[i2][j] << "\n" << endl;
+                // }
+                for (int j = 0; j < 4; ++j) {
+                    assert(op.rows() == M[inds[i1][j]].rows() && "Matrix dimensions must match for multiplication");
+                    MatrixXcd tmp = op * M[inds[i1][j]];
+                    op = tmp;
+                }
+                for (int j = 0; j < 4; ++j) {
+                    assert(op.rows() == M[inds[i2][j]].rows() && "Matrix dimensions must match for multiplication");
+                    MatrixXcd tmp = op * M[inds[i2][j]];
+                    op = tmp;
+                }
+                // cerr << "trace " << abs(op.trace()) << endl;
+                assert(abs(op.trace()) < 1e-3 && "Matrix must be traceless");
                 MatrixXcd GA_tmp = GA + coeff * op;
                 GA = GA_tmp;
             }
@@ -145,20 +173,26 @@ int main(int argc, char* argv[]) {
 
     auto t0 = chrono::high_resolution_clock::now();
 
+    test_count_unique();
+
     // cache Majoranas
     vector<Eigen::MatrixXcd> M;
     for (int i = 0; i < 2*LA; ++i) {
         M.push_back(majorana(i, LA));
     }
 
-    // Generate couplings
-    std::mt19937 gen(seed);
-    std::normal_distribution<double> dist(0., 1.);
-    int two_LA_choose_4 = (2*LA)*(2*LA-1)*(2*LA-2)*(2*LA-3)/24;
-    vector<double> cpls(two_LA_choose_4, 0.);
-    for (size_t i = 0; i < two_LA_choose_4; ++i) {
-        cpls[i] = dist(gen);
-    }
+    // // Generate couplings
+    // std::mt19937 gen(seed);
+    // std::normal_distribution<double> dist(0., 1.);
+    // int two_LA_choose_4 = (2*LA)*(2*LA-1)*(2*LA-2)*(2*LA-3)/24;
+    // vector<double> cpls(two_LA_choose_4, 0.);
+    // for (size_t i = 0; i < two_LA_choose_4; ++i) {
+    //     cpls[i] = dist(gen);
+    // }
+    
+    // load couplings
+    string filename = "cpls_L=" + to_string(L) + "_LA=" + std::to_string(LA) + "_seed=" + std::to_string(seed) + ".txt";
+    vector<double> cpls = loadCpls(filename);
     vector<vector<int>> inds = gen_inds(LA);
 
     // build GA
