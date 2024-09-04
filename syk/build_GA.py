@@ -62,7 +62,8 @@ def build_GA_group(group_idx, n_groups):
     for i1, inds1 in enumerate(iterator_group, start=group_idx*len(iterator)//n_groups):
         for i2, inds2 in enumerate(iterator):
             cdnl = len(set(inds1).union(set(inds2)))
-            if cdnl == 6 or cdnl == 8:
+            # if cdnl == 6 or cdnl == 8:
+            if cdnl != 4:
                 C_cdnl = comb(N, NA) / comb(N-cdnl, NA-cdnl)
                 coeffs.append(C_cdnl * CPLS[i1] * CPLS[i2])
                 ops.append(op_product([M[i] for i in inds1] + \

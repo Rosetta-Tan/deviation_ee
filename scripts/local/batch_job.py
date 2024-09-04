@@ -100,6 +100,15 @@ def build_GA(L, seed, exec):
                         {res.stderr.decode('utf-8')}")
         raise Exception
     
+def build_G(L, seed, exec):
+    args = shlex.split(exec + f" syk/build_G.py --L {L} --seed {seed} --msc_dir data/msc_syk --save True")
+    res = sp.run(args, capture_output=True)
+    if res.returncode != 0:
+        logging.debug(f"build_G failed\n \
+                        {res.stdout.decode('utf-8')} \
+                        {res.stderr.decode('utf-8')}")
+        raise Exception
+    
 def measure_obs(L, seed, tol, exec):
     args = shlex.split(exec + f" syk/measure_obs.py --L {L} --seed {seed} --tol {tol} --msc_dir data/msc_syk --vec_dir data/vec_syk_pm_z2_newtol --obs_dir data/obs_syk --gpu --save True")
     res = sp.run(args, capture_output=True)
@@ -205,6 +214,32 @@ def gen_expt_H2_report(L, seeds, tols, data_dir):
         writer.writerow(['tol', 'avg', 'std', 'max', 'min'])
         for itol, tol in enumerate(tols):
             writer.writerow([tol, expt_H2_avg[itol], expt_H2_std[itol], expt_H2_max[itol], expt_H2_min[itol]])
+
+def gen_tr_GA2_over_dim_report(L, seeds, data_dir):
+    data_dir = os.path.join(data_dir, "obs_syk")
+    tr_GA2_over_dim_data = np.zeros(len(seeds))
+    for seed in tqdm(seeds, desc="gen_tr_GA2_over_dim_report"):
+        iseed = seeds.index(seed)
+        tr_GA2_over_dim_file = os.path.join(
+                            data_dir,
+                            f"tr_GA2_over_dim_L={L}_seed={seed}.csv")
+        with open(tr_GA2_over_dim_file, 'r') as f:
+            rows = list(csv.reader(f))
+            tr_GA2_over_dim_data[iseed] = float(rows[1][2])
+
+    tr_GA2_over_dim_avg = np.mean(tr_GA2_over_dim_data)
+    tr_GA2_over_dim_std = np.std(tr_GA2_over_dim_data)
+    tr_GA2_over_dim_max = np.max(tr_GA2_over_dim_data)
+    tr_GA2_over_dim_min = np.min(tr_GA2_over_dim_data)
+
+    print(f"{'avg':<25}{'std':<25}{'max':<25}{'min':<25}")
+    print(f"{tr_GA2_over_dim_avg:<25}{tr_GA2_over_dim_std:<25}{tr_GA2_over_dim_max:<25}{tr_GA2_over_dim_min:<25}")
+
+    tr_GA2_over_dim_report = os.path.join(data_dir, f"tr_GA2_over_dim_L={L}_report.csv")
+    with open(tr_GA2_over_dim_report, 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(['avg', 'std', 'max', 'min'])
+        writer.writerow([tr_GA2_over_dim_avg, tr_GA2_over_dim_std, tr_GA2_over_dim_max, tr_GA2_over_dim_min])
 
 def wf_line_one(L, seeds, tols, exec, data_dir):
     for seed in tqdm(seeds, desc="wf_line_one"):
@@ -343,7 +378,7 @@ if __name__ == '__main__':
     executable = config[machine]["exec"]
     data_dir = config[machine]["data_dir"]
     L = args.L
-    seeds = [i for i in range(20)]
+    seeds = [i for i in range(0, 20)]
     tols = [0.1, 0.01, 0.001]
     
     # if args.mode == 'workflow':
@@ -354,5 +389,10 @@ if __name__ == '__main__':
     #     clean(L, seeds, tols, data_dir)
     #     workflow(L, seeds, tols, executable, data_dir)
 
-    for seed in seeds:
+    for seed in tqdm(seeds):
         build_GA(L, seed, executable)
+        # build_G(L, seed, executable)
+        # for tol in tols:
+        #     measure_th(L, seed, tol, executable)
+
+    # gen_tr_GA2_over_dim_report(L, seeds, data_dir)

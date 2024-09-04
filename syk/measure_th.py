@@ -58,12 +58,31 @@ def load_GA(L, LA, seed) -> np.ndarray:
         assert GA.shape[0] == 2**LA, f'GA shape: {GA.shape}'
         assert np.allclose(np.trace(GA), 0), logging.debug(f'trace of GA: {np.trace(GA)}')
         logging.info(f'load GA: L={L}, LA={LA}, seed {seed} ...')
-        logging.debug(f'trace of GA^2/(2^LA): {np.trace(GA @ GA)/(2**LA)}')
         return GA
     except:
         logging.error(f'GA file not found: L={L}, LA={LA}, seed {seed} ...')
         return None
+
+def trace_GA2_over_dim(GA, LA, seed, save=True, append=False):
+    """
+    Calculate the trace of GA^2.
+    """
+    data = np.trace(GA @ GA).real / 2**LA
+
+    if save:
+        csv_filepath = os.path.join(args.obs_dir, \
+            f"tr_GA2_over_dim_L={L}_LA={LA}_seed={seed}.csv")
     
+        if append:
+            with open(csv_filepath, 'a') as file:
+                writer = csv.writer(file)
+                writer.writerow([L, seed, data])
+        else:
+            with open(csv_filepath, 'w') as file:
+                writer = csv.writer(file)
+                writer.writerow(['L','seed','beta','S_thermal'])
+                writer.writerow([L, seed, data])
+
 def load_state_vec(L, seed, tol):
     """
     Load the state vector from file.
@@ -295,14 +314,15 @@ if __name__ == '__main__':
     seed = args.seed
     tol = args.tol
     GA = load_GA(L, LA, seed)
-    v = load_state_vec(L, seed, tol)
-    v_ext = extend_v(v, L)
-    v_rdm = get_v_rdm(v_ext, LA)
-    expt_GA = expt_GA_rdm(GA, v_rdm, save=args.save, append=False)
-    logging.debug(f'expectation value of GA: {expt_GA}')
-    expression = lambda beta: diff_GA_expt_thermal(expt_GA, GA, beta)
-    beta, iters = root_find(expression)
-    logging.info(f'root finding: beta={beta}, iterations={iters}')
-    S_thermal = thermal_entropy(GA, beta, save=args.save, append=False)
-    logging.info(f'calculate thermal entropy: S_thermal={S_thermal}')
-    logging.info(f'maximal thermal entropy: LA*log2={LA*np.log(2)}')
+    trace_GA2_over_dim(GA, LA, seed, tol, save=args.save, append=False)
+    # v = load_state_vec(L, seed, tol)
+    # v_ext = extend_v(v, L)
+    # v_rdm = get_v_rdm(v_ext, LA)
+    # expt_GA = expt_GA_rdm(GA, v_rdm, save=args.save, append=False)
+    # logging.debug(f'expectation value of GA: {expt_GA}')
+    # expression = lambda beta: diff_GA_expt_thermal(expt_GA, GA, beta)
+    # beta, iters = root_find(expression)
+    # logging.info(f'root finding: beta={beta}, iterations={iters}')
+    # S_thermal = thermal_entropy(GA, beta, save=args.save, append=False)
+    # logging.info(f'calculate thermal entropy: S_thermal={S_thermal}')
+    # logging.info(f'maximal thermal entropy: LA*log2={LA*np.log(2)}')
