@@ -52,6 +52,8 @@ def build_GA_group(group_idx, n_groups):
     coeffs = []
     A_maj_inds = list(range(2*args.LA))  # this is necessary because the iterator should go over Majorana indices instead of spin indices
     iterator = list(combinations(A_maj_inds, 4))
+    n_6 = 0
+    n_8 = 0
     
     # divide the outerloop into n_groups parts
     if group_idx == n_groups-1:
@@ -62,8 +64,14 @@ def build_GA_group(group_idx, n_groups):
     for i1, inds1 in enumerate(iterator_group, start=group_idx*len(iterator)//n_groups):
         for i2, inds2 in enumerate(iterator):
             cdnl = len(set(inds1).union(set(inds2)))
-            # if cdnl == 6 or cdnl == 8:
-            if cdnl != 4:
+            if cdnl == 6:
+                n_6 += 1
+                C_cdnl = comb(N, NA) / comb(N-cdnl, NA-cdnl)
+                coeffs.append(C_cdnl * CPLS[i1] * CPLS[i2])
+                ops.append(op_product([M[i] for i in inds1] + \
+                    [M[j] for j in inds2]))
+            elif cdnl == 8:
+                n_8 += 1
                 C_cdnl = comb(N, NA) / comb(N-cdnl, NA-cdnl)
                 coeffs.append(C_cdnl * CPLS[i1] * CPLS[i2])
                 ops.append(op_product([M[i] for i in inds1] + \
@@ -71,25 +79,32 @@ def build_GA_group(group_idx, n_groups):
 
     op_group = op_sum([c*op for c, op in zip(coeffs, ops)])
     op_group = op_group.to_numpy(sparse=False)
-    return op_group
+    return op_group, n_6, n_8
 
 def build_GA(n_groups, save=False):
     GA = np.zeros((2**args.LA, 2**args.LA), dtype=np.complex128)
     normalization_factor = 1.0 / comb(N, 4)
+    n_6 = 0
+    n_8 = 0
 
     for i in range(n_groups):
-        GA += build_GA_group(i, n_groups)
+        GA_tmp, n_6_tmp, n_8_tmp = build_GA_group(i, n_groups)
+        GA += GA_tmp
+        n_6 += n_6_tmp
+        n_8 += n_8_tmp
     GA *= normalization_factor
     
     if save == True:
         np.save(os.path.join(args.msc_dir, \
             f'GA_L={args.L}_LA={args.LA}_seed={args.seed}_dnm_decmp.npy'), GA)
-    return GA
+    return GA, n_6, n_8
 
 def pipeline(n_groups):
     logging.info(f'start building GA, L={args.L}, LA={args.LA} seed={args.seed}')
     start = default_timer()
-    build_GA(n_groups, save=True)
+    GA, n_6, n_8 = build_GA(n_groups, save=True)
+    assert n_6 == comb(NA, 6)*comb(6,2)*comb(4,2), f'n_6={n_6}, expected={comb(NA, 6)*comb(6,2)*comb(4,2)}'
+    assert n_8 == comb(NA, 8)*comb(8,0)*comb(8,4), f'n_8={n_8}, expetced={comb(NA, 8)*comb(8,0)*comb(8,4)}'
     logging.info(f'finish building GA, L={args.L}, \
                  LA={args.LA}, seed={args.seed}; \
                  time elapsed: {timedelta(0,default_timer()-start)}')
