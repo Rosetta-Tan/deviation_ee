@@ -7,12 +7,8 @@ parser.add_argument('--dry_run', required=False, action='store_true')
 args = parser.parse_args()
 
 # grid submission
-# Ls = list(range(26,27))
-seeds = list(range(0, 20))
-
-# supplemental submission
-Ls = [28]
-# seeds = [24]
+Ls = list(range(24, 25, 2))
+seeds = list(range(5, 15))
 
 # dir = f'/n/home01/ytan/scratch/deviation_ee/output/20240403_rerun_solve_extrm_eigvals'
 dir = f'/n/home01/ytan/scratch/deviation_ee/output/20240516_debug_solve_extrm_eigvals'
@@ -45,22 +41,22 @@ for L in Ls:
 # srun --mpi=pmix -n $SLURM_NTASKS python -O /n/home01/ytan/deviation_ee/syk/solve_extrm_eigvals.py -L {L} --seed $SLURM_ARRAY_TASK_ID --log_dir {dir}
 
 ##### for GPU #####
-# #SBATCH -J {JOBNAME}      # Job name
-# #SBATCH --account=yao_lab
-# #SBATCH --mail-type=BEGIN,END,FAIL  # Mail events (NONE, BEGIN, END, FAIL, ALL)
-# #SBATCH --chdir={dir}       # Directory for job execution
-# #SBATCH -o %A_%a.out  # File to which STDOUT will be written, %j inserts jobid; dir already ends with / 
-# #SBATCH -e %A_%a.err  # File to which STDERR will be written, %j inserts jobid
-# #SBATCH -t 3-00:00          # Runtime in D-HH:MM, minimum of 10 minutes
-# #SBATCH -n 1                # Number of tasks
-# #SBATCH -N 1                # Ensure that all cores are on one machine
-# #SBATCH --mem=80G       # Memory pool for all cores (see also --mem-per-cpu)
-# #SBATCH -p gpu_requeue,gpu
-# #SBATCH --gres=gpu:1
-# #SBATCH --constraint="a100"
+#SBATCH -J {JOBNAME}      # Job name
+#SBATCH --account=yao_lab
+#SBATCH --mail-type=BEGIN,END,FAIL  # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --chdir={dir}       # Directory for job execution
+#SBATCH -o %A_%a.out  # File to which STDOUT will be written, %j inserts jobid; dir already ends with / 
+#SBATCH -e %A_%a.err  # File to which STDERR will be written, %j inserts jobid
+#SBATCH -t 0-12:00:00          # Runtime in D-HH:MM, minimum of 10 minutes
+#SBATCH -n 1                # Number of tasks
+#SBATCH -N 1                # Ensure that all cores are on one machine
+#SBATCH --mem=20G       # Memory pool for all cores (see also --mem-per-cpu)
+#SBATCH -p yao_gpu
+#SBATCH --gres=gpu:1
+##SBATCH --constraint="a100"
 
-# mamba activate qec_numerics
-# singularity exec --nv /n/holystore01/LABS/yao_lab/Lab/dynamite/sifs/dynamite_latest-cuda.sif python /n/home01/ytan/deviation_ee/syk/solve_extrm_eigvals.py -L {L} --seed $SLURM_ARRAY_TASK_ID --gpu --log_dir {dir}
+mamba activate qec_numerics
+singularity exec --nv /n/holystore01/LABS/yao_lab/Lab/dynamite/sifs/dynamite_latest-cuda.sif python /n/home01/ytan/deviation_ee/syk/solve_extrm_eigval.py --L {L} --seed $SLURM_ARRAY_TASK_ID --gpu --log_dir {dir}
 ''')
   rsh.close()
   array_str = ','.join([str(i) for i in seeds])

@@ -7,8 +7,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dry_run', required=False, action='store_true')
 args = parser.parse_args()
 
-Ls = range(12, 20, 2)
-seeds = range(0, 20)
+Ls = range(24, 25, 2)
+seeds = range(20)
 
 dir = f'/n/home01/ytan/scratch/deviation_ee/output/build_syk/'
 if not os.path.isdir(dir):
@@ -45,15 +45,15 @@ for L in Ls:
 #SBATCH --chdir={dir}       # Directory for job execution
 #SBATCH -o %A_%a.out  # File to which STDOUT will be written, %j inserts jobid; dir already ends with / 
 #SBATCH -e %A_%a.err  # File to which STDERR will be written, %j inserts jobid
-#SBATCH -t 3-00:00          # Runtime in D-HH:MM, minimum of 10 minutes
+#SBATCH -t 0-12:00:00          # Runtime in D-HH:MM, minimum of 10 minutes
 #SBATCH -n 1                # Number of tasks
 #SBATCH -N 1                # Ensure that all cores are on one machine
-#SBATCH --mem=20G       # Memory pool for all cores (see also --mem-per-cpu)
-#SBATCH -p gpu_requeue,gpu
+#SBATCH --mem=8G       # Memory pool for all cores (see also --mem-per-cpu)
+#SBATCH -p gpu_test
 #SBATCH --gres=gpu:1
-#SBATCH --constraint="a40|a100"
+##SBATCH --constraint="a40|a100"
 
-singularity exec --nv /n/holystore01/LABS/yao_lab/Lab/dynamite/sifs/dynamite_latest-cuda.sif python /n/home01/ytan/deviation_ee/syk/build_syk.py -L {L} --seed $SLURM_ARRAY_TASK_ID --gpu 1
+singularity exec --nv /n/holystore01/LABS/yao_lab/Lab/dynamite/sifs/dynamite_latest-cuda.sif python /n/home01/ytan/deviation_ee/syk/build_syk.py --L {L} --seed $SLURM_ARRAY_TASK_ID --gpu 1
 ''')
   rsh.close()
   array_str = ','.join([str(i) for i in seeds])
