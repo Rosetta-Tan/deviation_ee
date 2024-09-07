@@ -23,13 +23,15 @@ args = parser.parse_args()
 # cd /home/yitan/Coding/deviation_ee/data/obs_syk && cat expt_GA_L=12_report.csv
 
 def check_syk_msc(L, seed, data_dir):
-    data_dir = os.path.join(data_dir, "msc_syk")
-    msc_file = os.path.join(data_dir, f"H_L={L}_seed={seed}.msc")
+    data_dir = os.path.join(data_dir, "msc_syk_benchmark")
+    msc_file = os.path.join(data_dir, f"H_L={L}_seed={seed}.npy")
     if not os.path.isfile(msc_file):
         logging.info(f"msc_syk [{L}, {seed}] not found, start building ...")
         raise FileNotFoundError
     
 def check_extrm_eigval(L, seed, data_dir):
+    # has to share the data with the remote one because it's not easy to
+    # reproduce the extrm_eigval data
     data_dir = os.path.join(data_dir, "extrm_eigval")
     evals_file = os.path.join(data_dir, f"eval_L={L}_seed={seed}.npy")
     if not os.path.isfile(evals_file):
@@ -64,8 +66,7 @@ def check_GA(L, seed, data_dir):
 
 def build_syk(L, seed, exec):
     # need to grant o+w permission to all data/* subdirectory
-
-    args = shlex.split(exec + f" syk/build_syk.py --L {L} --seed {seed} --msc_dir data/msc_syk --gpu 1")
+    args = shlex.split(exec + f" syk_benchmark/build_syk.py --L {L} --seed {seed} --msc_dir ../../data/msc_syk_benchmark")
     res = sp.run(args, capture_output=True)
     if res.returncode != 0:
         logging.debug(f"build_syk failed\n \
@@ -381,19 +382,10 @@ if __name__ == '__main__':
     L = args.L
     seeds = [i for i in range(0, 20)]
     tols = [0.1, 0.01, 0.001]
-    
-    if args.mode == 'workflow':
-        workflow(L, seeds, tols, executable, data_dir)
-    elif args.mode == 'clean':
-        clean(L, seeds, tols, data_dir)
-    elif args.mode == 'all':
-        clean(L, seeds, tols, data_dir)
-        workflow(L, seeds, tols, executable, data_dir)
 
-    # for seed in tqdm(seeds):
-    #     build_GA(L, seed, executable)
-        # build_G(L, seed, executable)
-        # for tol in tols:
-        #     measure_th(L, seed, tol, executable)
-
-    # gen_tr_GA2_over_dim_report(L, seeds, data_dir)
+    for seed in tqdm(seeds):
+        try:
+            check_syk_msc(L, seed, data_dir)
+        except Exception as e:
+            build_syk(L, seed, executable)
+            

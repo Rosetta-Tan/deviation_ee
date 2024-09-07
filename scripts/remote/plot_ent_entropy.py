@@ -7,7 +7,7 @@ from scipy.optimize import curve_fit
 plt.style.use('../figures/norm.mplstyle')
 
 # Ls = list(range(12, 27, 2))
-Ls = [12, 14, 16, 18]
+Ls = [12, 24]
 nseeds = 20
 tols = [0.1, 0.01, 0.001]
 obs_dir = '/n/home01/ytan/scratch/deviation_ee/obs_syk'

@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 plt.style.use('../../figures/norm.mplstyle')
 
-Ls = [12, 24]
+Ls = [12]
 seeds = list(range(20))
 tols = [0.1, 0.01, 0.001]
-obs_dir = '../../data/obs_syk'
+obs_dir = '../../data/old/obs_syk'
 
 # get simulation data
 # ees: {tol1: [[seed1, seed2, ...], ...], tol2: [[seed1, ...], ...], ...}

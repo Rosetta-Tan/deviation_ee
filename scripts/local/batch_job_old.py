@@ -64,8 +64,7 @@ def check_GA(L, seed, data_dir):
 
 def build_syk(L, seed, exec):
     # need to grant o+w permission to all data/* subdirectory
-
-    args = shlex.split(exec + f" syk/build_syk.py --L {L} --seed {seed} --msc_dir data/msc_syk --gpu 1")
+    args = shlex.split(exec + f" syk_old/build_syk.py --L {L} --seed {seed} --msc_dir data/old/msc_syk --gpu 1")
     res = sp.run(args, capture_output=True)
     if res.returncode != 0:
         logging.debug(f"build_syk failed\n \
@@ -74,7 +73,7 @@ def build_syk(L, seed, exec):
         raise Exception
     
 def solve_extrm_eigval(L, seed, exec):
-    args = shlex.split(exec + f" syk/solve_extrm_eigval.py --L {L} --seed {seed} --msc_dir data/msc_syk --res_dir data/extrm_eigval --gpu")
+    args = shlex.split(exec + f" syk_old/solve_extrm_eigval.py --L {L} --seed {seed} --msc_dir data/old/msc_syk --res_dir data/extrm_eigval --gpu")
     res = sp.run(args, capture_output=True)
     if res.returncode != 0:
         logging.debug(f"solve_extrm_eigval failed\n \
@@ -83,7 +82,7 @@ def solve_extrm_eigval(L, seed, exec):
         raise Exception
 
 def solve_syk_powermethod(L, seed, tol, exec):
-    args = shlex.split(exec + f" syk/solve_syk_powermethod.py --L {L} --seed {seed} --tol {tol} --msc_dir data/msc_syk --vec_dir data/vec_syk_pm_z2_newtol --eval_dir data/extrm_eigval --gpu")
+    args = shlex.split(exec + f" syk_old/solve_syk_powermethod.py --L {L} --seed {seed} --tol {tol} --msc_dir data/old/msc_syk --vec_dir data/old/vec_syk_pm_z2_newtol --eval_dir data/extrm_eigval --gpu")
     res = sp.run(args, capture_output=True)
     if res.returncode != 0:
         logging.debug(f"solve_syk_powermethod failed\n \
@@ -93,7 +92,7 @@ def solve_syk_powermethod(L, seed, tol, exec):
 
 def build_GA(L, seed, exec):
     LA = L // 2
-    args = shlex.split(exec + f" syk/build_GA.py --L {L} --LA {LA} --seed {seed} --msc_dir data/msc_npy_GA --gpu 1 --n_groups 1")
+    args = shlex.split(exec + f" syk_old/build_GA.py --L {L} --LA {LA} --seed {seed} --msc_dir data/old/msc_npy_GA --gpu 1 --n_groups 1")
     res = sp.run(args, capture_output=True)
     if res.returncode != 0:
         logging.debug(f"build_GA failed\n \
@@ -102,7 +101,7 @@ def build_GA(L, seed, exec):
         raise Exception
     
 def build_G(L, seed, exec):
-    args = shlex.split(exec + f" syk/build_G.py --L {L} --seed {seed} --msc_dir data/msc_syk --save True")
+    args = shlex.split(exec + f" syk_old/build_G.py --L {L} --seed {seed} --msc_dir data/old/msc_syk --save True")
     res = sp.run(args, capture_output=True)
     if res.returncode != 0:
         logging.debug(f"build_G failed\n \
@@ -111,7 +110,7 @@ def build_G(L, seed, exec):
         raise Exception
     
 def measure_obs(L, seed, tol, exec):
-    args = shlex.split(exec + f" syk/measure_obs.py --L {L} --seed {seed} --tol {tol} --msc_dir data/msc_syk --vec_dir data/vec_syk_pm_z2_newtol --obs_dir data/obs_syk --gpu --save True")
+    args = shlex.split(exec + f" syk_old/measure_obs.py --L {L} --seed {seed} --tol {tol} --msc_dir data/old/msc_syk --vec_dir data/old/vec_syk_pm_z2_newtol --obs_dir data/old/obs_syk --gpu --save True")
     res = sp.run(args, capture_output=True)
     if res.returncode != 0:
         logging.debug(f"measure_obs failed\n \
@@ -121,7 +120,7 @@ def measure_obs(L, seed, tol, exec):
 
 def measure_th(L, seed, tol, exec):
     LA = L // 2
-    args = shlex.split(exec + f" syk/measure_th.py --L {L} --LA {LA} --seed {seed} --tol {tol} --op_dir data/msc_npy_GA --vec_dir data/vec_syk_pm_z2_newtol --obs_dir data/obs_syk --gpu --save True")
+    args = shlex.split(exec + f" syk_old/measure_th.py --L {L} --LA {LA} --seed {seed} --tol {tol} --op_dir data/old/msc_npy_GA --vec_dir data/old/vec_syk_pm_z2_newtol --obs_dir data/old/obs_syk --gpu --save True")
     res = sp.run(args, capture_output=True)
     if res.returncode != 0:
         logging.debug(f"measure_th failed\n \
@@ -377,7 +376,7 @@ if __name__ == '__main__':
                     format='%(asctime)s - %(levelname)s - %(message)s')
     machine = "hqi401b"
     executable = config[machine]["exec"]
-    data_dir = config[machine]["data_dir"]
+    data_dir = config[machine]["data_dir"] + "/old"
     L = args.L
     seeds = [i for i in range(0, 20)]
     tols = [0.1, 0.01, 0.001]
