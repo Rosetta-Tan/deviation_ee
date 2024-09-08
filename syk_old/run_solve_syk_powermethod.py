@@ -5,7 +5,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dry_run', required=False, action='store_true')
 args = parser.parse_args()
 
-Ls = [24]
+Ls = list(range(14, 21, 2))
 seeds = list(range(0, 20))
 tols = [0.1, 0.01, 0.001]
 

@@ -7,7 +7,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dry_run', required=False, action='store_true')
 args = parser.parse_args()
 
-Ls = range(24, 25, 2)
+Ls = range(14, 21, 2)
 seeds = range(20)
 
 dir = f'/n/home01/ytan/scratch/deviation_ee/old/output/build_syk/'

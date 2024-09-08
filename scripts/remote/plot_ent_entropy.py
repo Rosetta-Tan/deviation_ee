@@ -9,7 +9,7 @@ plt.style.use('../../figures/norm.mplstyle')
 Ls = range(12, 25, 2)
 seeds = list(range(20))
 tols = [0.1, 0.01, 0.001]
-obs_dir = '/n/home01/ytan/scratch/deviation_ee/obs_syk'
+obs_dir = '/n/home01/ytan/scratch/deviation_ee/old/obs_syk'
 
 # get simulation data
 # ees: {tol1: [[seed1, seed2, ...], ...], tol2: [[seed1, ...], ...], ...}
@@ -57,7 +57,7 @@ for L in Ls:
 ees_page = np.array(ees_page).reshape(-1, 1).repeat(len(seeds), axis=1)
 
 deltas = {}
-with open('ent_entropy.txt', 'w') as f:
+with open('ent_entropy_old.txt', 'w') as f:
     for tol in tols:
         # deltas[tol] = np.array(ees_page)-np.average(ees[tol], axis=1)
         deltas[tol] = np.asarray(ees_page) - ees[tol]

@@ -7,7 +7,7 @@ parser.add_argument('--resume', dest='resume', type=int, required=False, default
 args = parser.parse_args()
 
 # grid submission
-Ls = [24]
+Ls = list(range(14, 21, 2))
 seeds = list(range(20))
 tols = [0.1, 0.01, 0.001]
 
