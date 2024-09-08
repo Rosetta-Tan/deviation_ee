@@ -8,8 +8,8 @@ args = parser.parse_args()
 
 # grid submission
 Ls = [12, 14, 16, 18]
-seeds = range(0, 20)
-tols = [1e-1, 1e-2]
+seeds = [i for i in range(20)]
+tols = [0.1, 0.01, 0.001]
 
 JOBNAME = 'syk_thermal'
 dir = '/n/home01/ytan/scratch/deviation_ee/output/2024602_thermal_bound'
@@ -55,7 +55,7 @@ for L in Ls:
 #SBATCH --gres=gpu:1
 #SBATCH --constraint="a40|a100"
 
-singularity exec --nv /n/holystore01/LABS/yao_lab/Lab/dynamite/sifs/dynamite_latest-cuda.sif python /n/home01/ytan/deviation_ee/syk/measure_thermal_entropy.py --L {L} --seed $SLURM_ARRAY_TASK_ID --tol {tol} --gpu --save True
+singularity exec --nv /n/holystore01/LABS/yao_lab/Lab/dynamite/sifs/dynamite_latest-cuda.sif python /n/home01/ytan/deviation_ee/syk/measure_thermal_entropy.py --L {L} --LA {L//2} --seed $SLURM_ARRAY_TASK_ID --tol {tol} --gpu --save True
 ''')
     rsh.close()
     filename_str = f'%A_%a_{JOBNAME}_L={L}_tol={tol}_{TIMESTAMP}'

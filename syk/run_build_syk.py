@@ -7,7 +7,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dry_run', required=False, action='store_true')
 args = parser.parse_args()
 
-Ls = range(24, 25, 2)
+Ls = range(12, 12, 2)
 seeds = range(20)
 
 dir = f'/n/home01/ytan/scratch/deviation_ee/output/build_syk/'
@@ -49,7 +49,7 @@ for L in Ls:
 #SBATCH -n 1                # Number of tasks
 #SBATCH -N 1                # Ensure that all cores are on one machine
 #SBATCH --mem=8G       # Memory pool for all cores (see also --mem-per-cpu)
-#SBATCH -p gpu_test
+#SBATCH -p gpu,gpu_requeue
 #SBATCH --gres=gpu:1
 ##SBATCH --constraint="a40|a100"
 

@@ -29,7 +29,8 @@ parser.add_argument('--J', type=float, required=False, default=1.0, help='coupli
 parser.add_argument('--seed', type=int, required=True, help='sample seed')
 parser.add_argument('--msc_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/msc_syk',  help='msc file directory')
 parser.add_argument('--log_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/output/solve_extrm_eigvals',  help='log directory')
-parser.add_argument('--res_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/output/solve_extrm_eigvals',  help='output directory')
+# parser.add_argument('--res_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/output/solve_extrm_eigvals',  help='output directory')
+parser.add_argument('--res_dir', type=str, required=False, default='/n/home01/ytan/scratch/deviation_ee/extrm_eigval',  help='output directory')
 parser.add_argument('--gpu', required=False, action='store_true', help='use GPU')
 args = parser.parse_args()
 

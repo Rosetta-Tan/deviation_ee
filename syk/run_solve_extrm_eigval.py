@@ -7,11 +7,12 @@ parser.add_argument('--dry_run', required=False, action='store_true')
 args = parser.parse_args()
 
 # grid submission
-Ls = list(range(24, 25, 2))
-seeds = list(range(5, 15))
+Ls = list(range(14, 20, 2))
+seeds = list(range(0, 20))
 
 # dir = f'/n/home01/ytan/scratch/deviation_ee/output/20240403_rerun_solve_extrm_eigvals'
 dir = f'/n/home01/ytan/scratch/deviation_ee/output/20240516_debug_solve_extrm_eigvals'
+res_dir = f'/n/home01/ytan/scratch/deviation_ee/extrm_eigval'
 if not os.path.isdir(dir):
   os.mkdir(dir)
 for L in Ls:
@@ -51,12 +52,12 @@ for L in Ls:
 #SBATCH -n 1                # Number of tasks
 #SBATCH -N 1                # Ensure that all cores are on one machine
 #SBATCH --mem=20G       # Memory pool for all cores (see also --mem-per-cpu)
-#SBATCH -p yao_gpu
+#SBATCH -p gpu,gpu_requeue
 #SBATCH --gres=gpu:1
 ##SBATCH --constraint="a100"
 
 mamba activate qec_numerics
-singularity exec --nv /n/holystore01/LABS/yao_lab/Lab/dynamite/sifs/dynamite_latest-cuda.sif python /n/home01/ytan/deviation_ee/syk/solve_extrm_eigval.py --L {L} --seed $SLURM_ARRAY_TASK_ID --gpu --log_dir {dir}
+singularity exec --nv /n/holystore01/LABS/yao_lab/Lab/dynamite/sifs/dynamite_latest-cuda.sif python /n/home01/ytan/deviation_ee/syk/solve_extrm_eigval.py --L {L} --seed $SLURM_ARRAY_TASK_ID --gpu --log_dir {dir} --res_dir {res_dir}
 ''')
   rsh.close()
   array_str = ','.join([str(i) for i in seeds])
