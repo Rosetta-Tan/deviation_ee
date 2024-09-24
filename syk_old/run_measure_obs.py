@@ -7,9 +7,9 @@ parser.add_argument('--resume', dest='resume', type=int, required=False, default
 args = parser.parse_args()
 
 # grid submission
-Ls = list(range(14, 21, 2))
-seeds = list(range(20))
-tols = [0.1, 0.01, 0.001]
+Ls = list(range(18, 19, 2))
+seeds = list(range(0, 20))
+tols = [0.01]
 
 JOBNAME = 'syk_meas'
 dir = '/n/home01/ytan/scratch/deviation_ee/old/output/20240425_powermethod_z2_newtol'

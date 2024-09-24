@@ -7,7 +7,7 @@ parser.add_argument('--dry_run', required=False, action='store_true')
 args = parser.parse_args()
 
 # grid submission
-Ls = list(range(14, 21, 2))
+Ls = list(range(18, 19, 2))
 seeds = list(range(0, 20))
 
 # dir = f'/n/home01/ytan/scratch/deviation_ee/old/output/20240403_rerun_solve_extrm_eigvals'

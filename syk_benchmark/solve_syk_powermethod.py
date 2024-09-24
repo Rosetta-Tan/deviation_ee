@@ -40,10 +40,10 @@ args = parser.parse_args()
 if args.gpu:
     config.initialize(gpu=True)
 config.shell=True  # not using shift-and-invert, so can use shell matrix
-config.subspace = Parity('even')
+# config.L = args.L
+# config.subspace = Parity('even')
 
 L = args.L
-config.L = L
 J = args.J
 N = 2*L # number of Majoranas
 seed = args.seed
@@ -61,40 +61,46 @@ def get_extrm_eigval(L, seed, eval_dir=args.eval_dir):
 
 LAMBDA = abs(get_extrm_eigval(L, seed))+0.001  # the tolerance was set to ~1e-5, so we add 0.001 to the largest eigenvalue
 
+def gen_projector(L):
+    P = np.zeros((2**(L-1), 2**L))
+    for i in range(2**L):
+        if bin(i).count('1') % 2 == 0:
+            P[i//2, i] = 1    
+    return P
+
+def project_state(v, P):
+    v_new = P @ v
+    assert v_new.shape[0] == 2**(L-1)
+    return v_new
+
+def project_op(op, P):
+    op_new = P @ op @ P.T
+    assert op_new.shape == (2**(L-1), 2**(L-1))
+    return op_new
+
 def cal_energy_expt(H, v):
-    Hv = H.dot(v)
-    return v.dot(Hv).real
+    Hv = H @ v
+    return np.dot(v.conj().T, Hv).real
 
 def cal_energy_variance(H, v):
-    Hv = H.dot(v)
-    return Hv.dot(Hv).real
-
-def load_H(L, seed):
-    if not os.path.exists(os.path.join(args.msc_dir,f'H_L={L}_seed={seed}.msc')):
-        logging.error(f'H_L={L}_seed={seed}.msc does not exist.')
-    H = Operator.load(os.path.join(args.msc_dir,f'H_L={L}_seed={seed}.msc'))
-    return H
-
-def diff_state_vecs(v0, v1):
-    v_diff = v1.copy()
-    v_diff.axpy(-1.0, v0)
-    return v_diff
+    Hv = H @ v
+    return np.dot(Hv.conj().T, Hv).real
 
 def power_method_like_evol(H, op1, op2, v0, tol):
     # initialize
-    v0.normalize()
+    v0 = v0 / np.linalg.norm(v0)
     num_pm_steps = 0
     logging.debug(f'num_pm_steps: {num_pm_steps}, energy variance: {cal_energy_variance(H, v0)}')
-    v1 = op1.dot(v0)
-    v2 = op2.dot(v1)
-    v2.normalize()
+    v1 = op1 @ v0
+    v2 = op2 @ v1
+    v2 = v2 / np.linalg.norm(v2)
     num_pm_steps += 1
     logging.debug(f'num_pm_steps: {num_pm_steps}, energy variance: {cal_energy_variance(H, v2)}')
     while cal_energy_variance(H, v2) > tol:
         v0, v2 = v2, v0  # swap the two states
-        v1 = op1.dot(v0)
-        v2 = op2.dot(v1)
-        v2.normalize()
+        v1 = op1 @ v0
+        v2 = op2 @ v1
+        v2 = v2 / np.linalg.norm(v2)
         num_pm_steps += 1
         if num_pm_steps % 100 == 0:
             logging.debug(f'num_pm_steps: {num_pm_steps}, energy variance: {cal_energy_variance(H, v2)}')
@@ -132,39 +138,39 @@ def power_method_like_evol(H, op1, op2, v0, tol):
     
 #     return v2, 1
 
-def main():
+if __name__ == '__main__':
     start = default_timer()
-    H = load_H(L=L, seed=seed)  # the factor 1/4 is because I used the wrong normalization when building the Hamiltonian
-    logging.info(f'H shape: {H.to_numpy(sparse=False).shape}')
+    args.msc_dir = 'data'
+    H = np.load(os.path.join(args.msc_dir,f'H_L={L}_seed={seed}.npy'), allow_pickle=True)
     logging.info(f'load Hamiltonian, L={L}, seed={seed}, to be solved at tol {tol}; time elapsed: {timedelta(seconds=default_timer()-start)}')
-    op1 = LAMBDA * identity() - H  # the same 1/4 factor here
-    logging.info(f'op1 shape: {op1.to_numpy(sparse=False).shape}')
-    op2 = LAMBDA * identity() + H  # the same 1/4 factor here
-    logging.info(f'op2 shape: {op2.to_numpy(sparse=False).shape}')
+    op1 = LAMBDA * np.eye(2**args.L) - H  # the same 1/4 factor here
+    op2 = LAMBDA * np.eye(2**args.L) + H  # the same 1/4 factor here
     logging.info(f'construct the two operators involved in power method, L={L}, seed={seed}; time elapsed: {timedelta(seconds=default_timer()-start)}')
-    
+
+    args.vec_dir = 'data'
     # check whether v0 has been saved
     if os.path.exists(os.path.join(args.vec_dir,f'v0_L={L}_seed={seed}_tol={tol}.metadata')) and \
         os.path.exists(os.path.join(args.vec_dir,f'v0_L={L}_seed={seed}_tol={tol}.vec')):
         logging.info(f'v0 exists, L={L}, seed={seed}, tol={tol}; time elapsed: {timedelta(seconds=default_timer()-start)}')
-        v0 = State.from_file(os.path.join(args.vec_dir,f'v0_L={L}_seed={seed}_tol={tol}'))
-        logging.info(f'v0 shape: {v0.to_numpy().shape}')
+        v0 = np.load(os.path.join(args.vec_dir,f'v0_L={L}_seed={seed}_tol={tol}.vec'))
     else:
-        v0 = State(state='random', seed=0)
-        v0.save(os.path.join(args.vec_dir,f'v0_L={L}_seed={seed}_tol={tol}'))
-        logging.info(f'v0 shape: {v0.to_numpy().shape}')
+        v0 = State(state='random', seed=0, subspace=Parity('even'), L=L)
+        v0 = v0.to_numpy()
+        # logging.info(f'shape of v0: {v0.shape}')
+        assert v0.shape == (2**(L-1),), f'v0 shape mismatch: {v0.shape}'
+        np.save(os.path.join(args.vec_dir,f'v0_L={L}_seed={seed}_tol={tol}.npy'), v0)
 
     # a sanity check
-    logging.debug(f'dimension of v0: len(v0)={len(v0)}; expetced dimension: 2^(L-1)={2**(config.L-1)}; matched: {len(v0) == 2**(config.L-1)}')
+    logging.debug(f'dimension of v0: len(v0)={len(v0)}; expetced dimension: 2^(L-1)={2**(L-1)}; matched: {len(v0) == 2**(L-1)}')
 
+    P = gen_projector(L)
+    H = project_op(H, P)
+    op1 = project_op(op1, P)
+    op2 = project_op(op2, P)
     v, num_pm_steps = power_method_like_evol(H, op1, op2, v0, tol=tol)
-    # v, num_pm_steps = power_method_debug(H, op1, op2, v0, tol)  # for debugging purpose
-    logging.info(f'v shape: {v.to_numpy().shape}')
+    # # v, num_pm_steps = power_method_debug(H, op1, op2, v0, tol)  # for debugging purpose
     logging.info(f'evolve state with power method, L={L}, seed={seed}; pm_step: {num_pm_steps}, time elapsed: {timedelta(seconds=default_timer()-start)}')
 
     # save data
-    v.save(os.path.join(args.vec_dir,f'v_L={L}_seed={seed}_tol={tol}'))
+    np.save(os.path.join(args.vec_dir,f'v_L={L}_seed={seed}_tol={tol}'), v)
     print(f'L={L}, seed={seed}, tol={tol}, pm_step={num_pm_steps}', flush=True)
-
-if __name__ == '__main__':
-    main()

@@ -83,14 +83,15 @@ colors = plt.colormaps.get_cmap('PuBu')
 bright_colors = [colors(i) for i in [0.3,0.6,0.9]]
 
 fig, ax = plt.subplots()
+Ns = 2*np.array(Ls)
 for i, tol in enumerate(tols):
-    ax.errorbar(Ls, np.average(deltas[tol], axis=1), yerr=np.std(deltas[tol], axis=1),
-                fmt='-o', capsize=5, label=f'tol={tol}',
+    ax.errorbar(Ns, np.average(deltas[tol], axis=1), yerr=np.std(deltas[tol], axis=1),
+                fmt='-o', capsize=5, label=f'$\epsilon={tol}$',
                 markeredgecolor='black', markeredgewidth=1,
                 color=bright_colors[i])
-    ax.plot(Ls, np.average(deltas[tol], axis=1), '-o', color=bright_colors[i])
-ax.set_xlabel('L')
-ax.set_xticks(Ls)
+    ax.plot(Ns, np.average(deltas[tol], axis=1), '-o', color=bright_colors[i])
+ax.set_xlabel('N')
+ax.set_xticks(Ns)
 ax.set_ylabel('$\Delta S$')
 ax.legend()
 fig.savefig('../../figures/ent_entropy.pdf', bbox_inches='tight')
