@@ -7,8 +7,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dry_run', required=False, action='store_true')
 args = parser.parse_args()
 
-Ls = range(20, 21, 2)
-seeds = [0, 9, 11]
+Ls = range(26, 27, 2)
+seeds = [0]
 # , 15, 16, 17]
 
 # mapping from L to memory requirement
